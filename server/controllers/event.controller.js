@@ -66,7 +66,6 @@ const deleteEventAndLogs = async (req, res) => {
   const { id } = req.params;
 
   try {
-    console.log('👉 התחילה מחיקה מלאה');
 
     // מחיקת כל הלוגים שקשורים לאירוע
     await Log.deleteMany({ eventId: id });
