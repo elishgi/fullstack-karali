@@ -1,0 +1,167 @@
+{
+  "info": {
+    "name": "Karali API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Get All Events",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "http://localhost:4000/api/events",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "4000",
+          "path": [
+            "api",
+            "events"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Create Event",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"name\": \"מגרנה\", \"color\": \"#FF0000\"}"
+        },
+        "url": {
+          "raw": "http://localhost:4000/api/events",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "4000",
+          "path": [
+            "api",
+            "events"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Update Event",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"name\": \"עודכן\", \"color\": \"#00FF00\"}"
+        },
+        "url": {
+          "raw": "http://localhost:4000/api/events/:id",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "4000",
+          "path": [
+            "api",
+            "events",
+            ":id"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Delete Event",
+      "request": {
+        "method": "DELETE",
+        "url": {
+          "raw": "http://localhost:4000/api/events/:id",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "4000",
+          "path": [
+            "api",
+            "events",
+            ":id"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Get All Logs",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "http://localhost:4000/api/logs",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "4000",
+          "path": [
+            "api",
+            "logs"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Create Log",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"eventId\": \"PASTE_EVENT_ID_HERE\", \"comment\": \"קרה משהו\", \"imageUri\": \"\", \"location\": {\"lat\": 31.73, \"lng\": 34.74}}"
+        },
+        "url": {
+          "raw": "http://localhost:4000/api/logs",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "4000",
+          "path": [
+            "api",
+            "logs"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Delete Log",
+      "request": {
+        "method": "DELETE",
+        "url": {
+          "raw": "http://localhost:4000/api/logs/:id",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "4000",
+          "path": [
+            "api",
+            "logs",
+            ":id"
+          ]
+        }
+      }
+    }
+  ]
+}

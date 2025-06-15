@@ -1,0 +1,50 @@
+# === CLIENT - React Native / Expo ===
+client/node_modules/
+client/.expo/
+client/dist/
+client/web-build/
+client/expo-env.d.ts
+client/metro.config.js
+client/.expo-shared/
+
+# === SERVER - Node.js ===
+server/node_modules/
+server/.env
+server/npm-debug.log
+
+# === Global - Both ===
+
+# Local env files
+.env*
+*.env
+*.env.*.local
+
+# macOS
+.DS_Store
+
+# Debug / Logs
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# TypeScript
+*.tsbuildinfo
+
+# Certificates / Keys
+*.pem
+*.key
+*.p8
+*.p12
+*.jks
+
+# Git merge conflict backups
+*.orig.*
+
+# Xcode / Mobile provisioning
+*.mobileprovision
+
+# Health check
+.metro-health-check*
+
+# Build
+build/
