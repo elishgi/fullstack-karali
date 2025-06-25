@@ -51,27 +51,27 @@ export default function HomeScreen() {
 
 
 
-useEffect(() => {
-  const loadUser = async () => {
-    const userData = await AsyncStorage.getItem('user');
-    if (userData) {
-      const parsed = JSON.parse(userData);
-      setUserName(parsed.name);
-    }
-  };
+  useEffect(() => {
+    const loadUser = async () => {
+      const userData = await AsyncStorage.getItem('user');
+      if (userData) {
+        const parsed = JSON.parse(userData);
+        setUserName(parsed.name);
+      }
+    };
 
-  loadUser();
-  fetchEvents();
-}, []);
+    loadUser();
+    fetchEvents();
+  }, []);
 
 
-useEffect(() => {
-  const unsubscribe = navigation.addListener('focus', () => {
-    fetchEvents(); 
-  });
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      fetchEvents();
+    });
 
-  return unsubscribe;
-}, [navigation]);
+    return unsubscribe;
+  }, [navigation]);
 
 
   const fetchEvents = async () => {
@@ -186,12 +186,16 @@ useEffect(() => {
       style={styles.fullBackground}
       resizeMode="cover"
     >
+      <View style={styles.header}>
+        <Image source={require('C:/Users/User/fullstack-karali/client/assets/images/logo1.png')} style={styles.logo} />
+        <Text style={styles.welcome}>ברוך הבא, {userName}</Text>
+      </View>
 
 
       {/* שלישיית כפתורים מעוצבת */}
       <View style={styles.topButtonsContainer}>
         <TouchableOpacity
-          style={styles.topButton}
+          style={[styles.topButton, { backgroundColor: '#A68CF1' }]}
           onPress={() => setIsEditMode(!isEditMode)}
         >
           <Text style={styles.topButtonText}>
@@ -200,14 +204,14 @@ useEffect(() => {
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={styles.topButton}
+          style={[styles.topButton, { backgroundColor: '#66D19E' }]}
           onPress={() => navigation.navigate('Logs')}
         >
           <Text style={styles.topButtonText}>📄 הצג לוגים</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={styles.topButton}
+          style={[styles.topButton, { backgroundColor: '#3DD6D0' }]}
           onPress={() => navigation.navigate('AddEvent')}
         >
           <Text style={styles.topButtonText}>➕ הוסף אירוע</Text>
@@ -217,11 +221,6 @@ useEffect(() => {
 
 
       <View style={{ alignItems: 'center' }}>
-        {userName !== '' && (
-          <View style={{ alignItems: 'center', marginTop: 10 }}>
-            <Text style={{ fontSize: 18, fontWeight: 'bold' }}>שלום {userName}</Text>
-          </View>
-        )}
         <Text style={styles.title}>אירועים:</Text>
       </View>
 
@@ -534,23 +533,21 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   eventButtonName: {
-    color: '#fff',
-    fontWeight: 'bold',
+    color: '#333',
+    fontWeight: '600',
     fontSize: 16,
     textAlign: 'center',
-    textShadowColor: '#000',
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 3,
-  },
-  eventButtonCount: {
-    color: '#ffeb3b',
-    fontWeight: 'bold',
-    fontSize: 22,
     marginTop: 4,
-    textShadowColor: '#000',
-    textShadowOffset: { width: 2, height: 2 },
-    textShadowRadius: 4,
   },
+
+  eventButtonCount: {
+    color: '#3DD6D0',
+    fontWeight: 'bold',
+    fontSize: 20,
+    marginTop: 4,
+    textAlign: 'center',
+  },
+
   editButtonsContainer: {
     position: 'absolute',
     top: -4,
@@ -658,6 +655,27 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#333',
   },
+
+  header: {
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+
+  logo: {
+    width: 200,
+    height: 200,
+    resizeMode: 'contain',
+    marginBottom: -60,
+    marginTop: -40,
+  },
+
+  welcome: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+    textAlign: 'center',
+  },
+
 
 });
 
