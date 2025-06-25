@@ -17,6 +17,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { useRoute } from '@react-navigation/native';
 
+
 import {
   getEvents,
   updateEvent,
@@ -49,6 +50,11 @@ export default function HomeScreen() {
 
   const route = useRoute();
 
+  const [hasRevealedButtons, setHasRevealedButtons] = useState(false);
+  const [lastScrollY, setLastScrollY] = useState(0);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+
+
 
 
   useEffect(() => {
@@ -72,6 +78,16 @@ export default function HomeScreen() {
 
     return unsubscribe;
   }, [navigation]);
+
+  useEffect(() => {
+    if (hasRevealedButtons) {
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 400,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [hasRevealedButtons]);
 
 
   const fetchEvents = async () => {
@@ -193,43 +209,57 @@ export default function HomeScreen() {
 
 
       {/* שלישיית כפתורים מעוצבת */}
-      <View style={styles.topButtonsContainer}>
-        <TouchableOpacity
-          style={[styles.topButton, { backgroundColor: '#A68CF1' }]}
-          onPress={() => setIsEditMode(!isEditMode)}
-        >
-          <Text style={styles.topButtonText}>
-            {isEditMode ? '✅ סיים עריכה' : '🖉 מצב עריכה'}
-          </Text>
-        </TouchableOpacity>
+      {hasRevealedButtons && (
+        <Animated.View style={[styles.topButtonsContainer, { opacity: fadeAnim }]}>
+          <TouchableOpacity
+            style={[styles.topButton, { backgroundColor: '#A68CF1' }]}
+            onPress={() => setIsEditMode(!isEditMode)}
+          >
+            <Text style={styles.topButtonText}>
+              {isEditMode ? '✅ סיים עריכה' : '🖉 מצב עריכה'}
+            </Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[styles.topButton, { backgroundColor: '#66D19E' }]}
-          onPress={() => navigation.navigate('Logs')}
-        >
-          <Text style={styles.topButtonText}>📄 הצג לוגים</Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.topButton, { backgroundColor: '#66D19E' }]}
+            onPress={() => navigation.navigate('Logs')}
+          >
+            <Text style={styles.topButtonText}>📄 הצג לוגים</Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[styles.topButton, { backgroundColor: '#3DD6D0' }]}
-          onPress={() => navigation.navigate('AddEvent')}
-        >
-          <Text style={styles.topButtonText}>➕ הוסף אירוע</Text>
-        </TouchableOpacity>
-      </View>
-
-
-
-      <View style={{ alignItems: 'center' }}>
-        <Text style={styles.title}>אירועים:</Text>
-      </View>
+          <TouchableOpacity
+            style={[styles.topButton, { backgroundColor: '#3DD6D0' }]}
+            onPress={() => navigation.navigate('AddEvent')}
+          >
+            <Text style={styles.topButtonText}>➕ הוסף אירוע</Text>
+          </TouchableOpacity>
+        </Animated.View>
+      )}
 
 
-      <FlatList
+
+      <Animated.FlatList
         data={events}
         numColumns={2}
         columnWrapperStyle={{ justifyContent: 'space-between' }}
         keyExtractor={(item) => item._id}
+        onScroll={(event) => {
+          const yOffset = event.nativeEvent.contentOffset.y;
+
+          if (yOffset < -20 && !hasRevealedButtons) {
+            setHasRevealedButtons(true);
+          }
+
+          if (yOffset > lastScrollY + 10 && hasRevealedButtons) {
+            setHasRevealedButtons(false);
+          }
+
+          setLastScrollY(yOffset);
+        }}
+
+
+
+        scrollEventThrottle={16}
         renderItem={({ item }) => (
           <EventButton
             item={item}
@@ -241,9 +271,9 @@ export default function HomeScreen() {
             onEditColor={() => setSelectedEventForColor(item)}
             onDelete={() => setSelectedEventForDelete(item)}
           />
-
         )}
       />
+
       <View style={{ padding: 20 }}>
         <Button title="🚪 התנתק" color="gray" onPress={handleLogout} />
       </View>
@@ -409,7 +439,7 @@ const EventButton = ({ item, isEditMode, navigation, onPress, onLongPress, onEdi
       onPressOut={handlePressOut}
       onPress={isEditMode ? null : onPress}
       onLongPress={isEditMode ? null : onLongPress}
-      pointerEvents={isEditMode ? 'box-none' : 'auto'} // ← הכי חשוב!
+      pointerEvents={isEditMode ? 'box-none' : 'auto'}
     >
 
       <Animated.View
@@ -478,7 +508,7 @@ const styles = StyleSheet.create({
   topButtonsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 20,
+    marginBottom: 10,
   },
   fullBackground: {
     flex: 1,
@@ -670,10 +700,11 @@ const styles = StyleSheet.create({
   },
 
   welcome: {
-    fontSize: 20,
+    fontSize: 15,
     fontWeight: 'bold',
     color: '#333',
     textAlign: 'center',
+    marginTop: -25,
   },
 
 
