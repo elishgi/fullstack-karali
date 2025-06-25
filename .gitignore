@@ -14,10 +14,7 @@ server/npm-debug.log
 
 # === Global - Both ===
 
-# Local env files
-.env*
-*.env
-*.env.*.local
+
 
 # macOS
 .DS_Store

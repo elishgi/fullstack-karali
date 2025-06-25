@@ -24,7 +24,7 @@ export default function AddEventScreen() {
     try {
       await addEvent(newEvent);
       Alert.alert('אירוע חדש נוסף בהצלחה');
-      navigation.navigate('Home');
+      navigation.goBack();
     } catch (error) {
       console.error('Error adding event:', error);
       Alert.alert('שגיאה בהוספת אירוע');
