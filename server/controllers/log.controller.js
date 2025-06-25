@@ -26,6 +26,7 @@ const getAllLogs = async (req, res) => {
       filter.eventId = eventId;
     }
 
+    filter.userId = req.user._id;
     const logs = await Log.find(filter).sort({ timestamp: -1 });
     res.json(logs);
   } catch (err) {
@@ -59,8 +60,10 @@ const createLog = async (req, res) => {
       dayOfWeek,
       comment,
       imageUri,
-      location
+      location,
+      userId: req.user._id
     });
+
 
     await newLog.save();
 

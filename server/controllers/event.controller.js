@@ -3,7 +3,7 @@ const Log = require('../models/log.model');
 
 const getAllEvents = async (req, res) => {
   try {
-    const events = await Event.find();
+    const events = await Event.find({ userId: req.user._id });
     res.json(events);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -15,8 +15,10 @@ const createEvent = async (req, res) => {
     const { name, color } = req.body;
     const newEvent = new Event({
       name,
-      color
+      color,
+      userId: req.user._id
     });
+
     await newEvent.save();
     res.status(201).json(newEvent);
   } catch (err) {
@@ -67,10 +69,10 @@ const deleteEventAndLogs = async (req, res) => {
 
   try {
 
-    // מחיקת כל הלוגים שקשורים לאירוע
+
     await Log.deleteMany({ eventId: id });
 
-    // מחיקת האירוע עצמו
+
     await Event.findByIdAndDelete(id);
 
     res.json({ message: 'האירוע וכל הלוגים נמחקו בהצלחה' });

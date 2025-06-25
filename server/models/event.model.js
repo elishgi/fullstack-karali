@@ -1,17 +1,22 @@
 const mongoose = require('mongoose');
 
 const eventSchema = new mongoose.Schema({
+    userId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true
+    },
     name: {
-        type : String,
-        required : true
+        type: String,
+        required: true
     },
     color: {
-        type : String,
+        type: String,
         default: '#000000'
     },
     totalColor: {
-        type : Number,
-        default : 0
+        type: Number,
+        default: 0
     }
 });
 

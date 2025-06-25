@@ -18,7 +18,7 @@ import {
   FlatList,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import axios from 'axios';
+import api, { getLogs } from '../services/api';
 import { BarChart } from 'react-native-chart-kit';
 import { SwipeListView } from 'react-native-swipe-list-view';
 
@@ -66,14 +66,17 @@ export default function LogsScreen() {
   const fetchLogs = async () => {
     setLoading(true);
     try {
-      const response = await axios.get(`${BASE_URL}/api/logs`);
-      setLogs(response.data);
+      const data = await getLogs();
+      setLogs(data);
     } catch (error) {
-      console.error('Error fetching logs:', error);
+      const message =
+        error?.response?.data?.message || error?.message || 'שגיאה לא ידועה';
+      console.error('❌ Error fetching logs:', message);
     } finally {
       setLoading(false);
     }
   };
+
   const deleteLog = async (logId) => {
     Alert.alert('מחיקת תיעוד', 'האם אתה בטוח שברצונך למחוק את התיעוד?', [
       { text: 'ביטול', style: 'cancel' },
@@ -81,7 +84,7 @@ export default function LogsScreen() {
         text: 'מחק', style: 'destructive',
         onPress: async () => {
           try {
-            await axios.delete(`${BASE_URL}/api/logs/${logId}`);
+            await api.delete(`/api/logs/${logId}`);
             fetchLogs();
           } catch (error) {
             console.error('שגיאה במחיקת לוג:', error);
@@ -93,7 +96,7 @@ export default function LogsScreen() {
 
   const fetchEventNames = async () => {
     try {
-      const response = await axios.get(`${BASE_URL}/api/events/names`);
+      const response = await api.get('/api/events/names');
       setEventOptions(response.data);
     } catch (error) {
       console.error('Error fetching event names:', error);
@@ -128,15 +131,19 @@ export default function LogsScreen() {
       if (toDate) params.toDate = toDate.toISOString();
       if (eventName) params.eventName = eventName;
       if (timeOfDay) params.timeOfDay = timeOfDay;
-      const response = await axios.get(`${BASE_URL}/api/logs`, { params });
+
+      const response = await api.get('/api/logs', { params });
       setLogs(response.data);
       toggleFilterPanel();
     } catch (error) {
-      console.error('Error filtering logs:', error);
+      const message =
+        error?.response?.data?.message || error?.message || 'שגיאה לא ידועה';
+      console.error('❌ Error filtering logs:', message);
     } finally {
       setLoading(false);
     }
   };
+
 
   const resetFilters = () => {
     setFromDate(null);

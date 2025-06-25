@@ -24,42 +24,42 @@ export default function AddEventScreen() {
     try {
       await addEvent(newEvent);
       Alert.alert('אירוע חדש נוסף בהצלחה');
-      navigation.goBack();
+      navigation.navigate('Home', { refresh: true });
     } catch (error) {
       console.error('Error adding event:', error);
       Alert.alert('שגיאה בהוספת אירוע');
     }
   };
 
-return (
-  <ScrollView contentContainerStyle={styles.container}>
-    <Text style={styles.title}>הוספת אירוע חדש</Text>
+  return (
+    <ScrollView contentContainerStyle={styles.container}>
+      <Text style={styles.title}>הוספת אירוע חדש</Text>
 
-    <Text style={styles.label}>שם האירוע:</Text>
-    <TextInput
-      style={styles.input}
-      placeholder="הכנס שם אירוע"
-      value={name}
-      onChangeText={setName}
-    />
-
-    <Text style={styles.label}>בחר צבע:</Text>
-    <View style={styles.colorPickerWrapper}>
-      <WheelColorPicker
-        color={color}
-        onColorChangeComplete={(selectedColor) => setColor(selectedColor)}
-        style={styles.colorPicker}
+      <Text style={styles.label}>שם האירוע:</Text>
+      <TextInput
+        style={styles.input}
+        placeholder="הכנס שם אירוע"
+        value={name}
+        onChangeText={setName}
       />
-    </View>
 
-    <Text style={styles.label}>תצוגת צבע נבחר:</Text>
-    <View style={[styles.colorPreview, { backgroundColor: color }]} />
+      <Text style={styles.label}>בחר צבע:</Text>
+      <View style={styles.colorPickerWrapper}>
+        <WheelColorPicker
+          color={color}
+          onColorChangeComplete={(selectedColor) => setColor(selectedColor)}
+          style={styles.colorPicker}
+        />
+      </View>
 
-    <View style={styles.buttonWrapper}>
-      <Button title="➕ הוסף אירוע" onPress={handleAddEvent} />
-    </View>
-  </ScrollView>
-);
+      <Text style={styles.label}>תצוגת צבע נבחר:</Text>
+      <View style={[styles.colorPreview, { backgroundColor: color }]} />
+
+      <View style={styles.buttonWrapper}>
+        <Button title="➕ הוסף אירוע" onPress={handleAddEvent} />
+      </View>
+    </ScrollView>
+  );
 
 }
 

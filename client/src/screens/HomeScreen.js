@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,8 @@ import {
   Button
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useRoute } from '@react-navigation/native';
+
 import {
   getEvents,
   updateEvent,
@@ -26,6 +28,7 @@ import {
 } from '../services/api';
 import { BlurView } from 'expo-blur';
 import WheelColorPicker from 'react-native-wheel-color-picker';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function HomeScreen() {
   const navigation = useNavigation();
@@ -40,23 +43,53 @@ export default function HomeScreen() {
 
   const [selectedEventForDelete, setSelectedEventForDelete] = useState(null);
 
+  const [userName, setUserName] = useState('');
+
   const clickTimeout = useRef(null);
 
-  useEffect(() => {
-    fetchEvents();
-  }, []);
+  const route = useRoute();
 
-  useEffect(() => {
-    const unsubscribe = navigation.addListener('focus', () => {
-      fetchEvents();
-    });
-    return unsubscribe;
-  }, [navigation]);
+
+
+useEffect(() => {
+  const loadUser = async () => {
+    const userData = await AsyncStorage.getItem('user');
+    if (userData) {
+      const parsed = JSON.parse(userData);
+      setUserName(parsed.name);
+    }
+  };
+
+  loadUser();
+  fetchEvents();
+}, []);
+
+
+useEffect(() => {
+  const unsubscribe = navigation.addListener('focus', () => {
+    fetchEvents(); 
+  });
+
+  return unsubscribe;
+}, [navigation]);
+
 
   const fetchEvents = async () => {
     const data = await getEvents();
     setEvents(data);
   };
+
+  const handleLogout = async () => {
+    try {
+      await AsyncStorage.removeItem('token');
+      await AsyncStorage.removeItem('user');
+      navigation.replace('Login');
+    } catch (error) {
+      console.error('שגיאה בהתנתקות:', error);
+      Alert.alert('שגיאה בהתנתקות');
+    }
+  };
+
 
   const handleSingleClick = async (event) => {
     try {
@@ -184,6 +217,11 @@ export default function HomeScreen() {
 
 
       <View style={{ alignItems: 'center' }}>
+        {userName !== '' && (
+          <View style={{ alignItems: 'center', marginTop: 10 }}>
+            <Text style={{ fontSize: 18, fontWeight: 'bold' }}>שלום {userName}</Text>
+          </View>
+        )}
         <Text style={styles.title}>אירועים:</Text>
       </View>
 
@@ -207,6 +245,10 @@ export default function HomeScreen() {
 
         )}
       />
+      <View style={{ padding: 20 }}>
+        <Button title="🚪 התנתק" color="gray" onPress={handleLogout} />
+      </View>
+
 
       <Modal visible={!!selectedEventForColor} transparent animationType="slide">
         <View style={styles.modalContainer}>

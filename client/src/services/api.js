@@ -1,90 +1,63 @@
 import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const api = axios.create({
   baseURL: 'http://192.168.8.111:4000',
 });
 
-
-export const getEvents = async () => {
-  try {
-    const response = await api.get('/api/events');
-    return response.data;
-  } catch (error) {
-    console.error('Error fetching events:', error);
-    throw error;
+// Interceptor – הוספת Authorization Header אוטומטית
+api.interceptors.request.use(async (config) => {
+  const token = await AsyncStorage.getItem('token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
   }
+  return config;
+}, (error) => {
+  return Promise.reject(error);
+});
+
+
+// ========== Events ==========
+export const getEvents = async () => {
+  const res = await api.get('/api/events');
+  return res.data;
 };
 
 export const addEvent = async (newEvent) => {
-  try {
-    const response = await api.post('/api/events', newEvent);
-    return response.data;
-  } catch (error) {
-    console.error('Error adding event:', error);
-    throw error;
-  }
+  const res = await api.post('/api/events', newEvent);
+  return res.data;
 };
 
 export const updateEvent = async (id, updatedEvent) => {
-  try {
-    const response = await api.put(`/api/events/${id}`, updatedEvent);
-    return response.data;
-  } catch (error) {
-    console.error('Error updating event:', error);
-    throw error;
-  }
+  const res = await api.put(`/api/events/${id}`, updatedEvent);
+  return res.data;
 };
 
 export const deleteEvent = async (id) => {
-  try {
-    const response = await api.delete(`/api/events/${id}`);
-    return response.data;
-  } catch (error) {
-    console.error('Error deleting event:', error);
-    throw error;
-  }
+  const res = await api.delete(`/api/events/${id}`);
+  return res.data;
 };
 
 export const deleteEventAndLogs = async (eventId) => {
-  try {
-    const response = await api.delete(`/api/eventsWithLogs/${eventId}`);
-    return response.data;
-  } catch (error) {
-    console.error('Error deleting event with logs:', error);
-    throw error;
-  }
+  const res = await api.delete(`/api/eventsWithLogs/${eventId}`);
+  return res.data;
 };
 
-
+// ========== Logs ==========
 export const getLogs = async () => {
-  try {
-    const response = await api.get('/api/logs');
-    return response.data;
-  } catch (error) {
-    console.error('Error fetching logs:', error);
-    throw error;
-  }
+  const res = await api.get('/api/logs');
+  return res.data;
 };
 
 export const addLog = async (newLog) => {
-  try {
-    const response = await api.post('/api/logs', newLog);
-    return response.data;
-  } catch (error) {
-    console.error('Error adding log:', error);
-    throw error;
-  }
+  const res = await api.post('/api/logs', newLog);
+  return res.data;
 };
 
 export const deleteLog = async (logId) => {
-  try {
-    const response = await api.delete(`/api/logs/${logId}`);
-    return response.data;
-  } catch (error) {
-    console.error('Error deleting log:', error);
-    throw error;
-  }
+  const res = await api.delete(`/api/logs/${logId}`);
+  return res.data;
 };
 
-
 export default api;
+
