@@ -12,7 +12,8 @@ const {
 const Event = require('../models/event.model');
 const auth = require('../middleware/auth');
 
-// 🛡️ כל הראוטים מוגנים ע"י auth
+//  כל הראוטים מוגנים ע"י auth
+//ראוטרים: שלפית אירועים, יצירת אירוע, עדכון לפי שם מזהה, מחיקת אירוע, מחיקת אירוע ותיעודים
 router.get('/events', auth, getAllEvents);
 router.post('/events', auth, createEvent);
 router.put('/events/:id', auth, updateEvent);
@@ -25,7 +26,7 @@ router.get('/events/names', auth, async (req, res) => {
         const names = await Event.find({ userId: req.user._id }).distinct('name');
         res.json(names);
     } catch (err) {
-        res.status(500).json({ message: err.message });
+        res.status(500).json({ message: 'שגיאה בשליפת שמות האירועים' });
     }
 });
 

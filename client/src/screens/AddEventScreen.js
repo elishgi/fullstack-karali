@@ -11,7 +11,7 @@ export default function AddEventScreen() {
 
   const handleAddEvent = async () => {
     if (!name.trim()) {
-      Alert.alert('יש להזין שם לאירוע');
+      Alert.alert("אנא הזן שם לאירוע לפני ההוספה");
       return;
     }
 
@@ -26,8 +26,8 @@ export default function AddEventScreen() {
       Alert.alert('אירוע חדש נוסף בהצלחה');
       navigation.navigate('Home', { refresh: true });
     } catch (error) {
-      console.error('Error adding event:', error);
-      Alert.alert('שגיאה בהוספת אירוע');
+      console.error('שגיאה בהוספת אירוע:', error);
+      Alert.alert("אירעה שגיאה בעת הוספת האירוע. נסה שוב.");
     }
   };
 

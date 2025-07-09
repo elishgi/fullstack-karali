@@ -1,12 +1,14 @@
 const Event = require('../models/event.model');
 const Log = require('../models/log.model');
+// ניהול CRUD של אירועים .
+
 
 const getAllEvents = async (req, res) => {
   try {
     const events = await Event.find({ userId: req.user._id });
     res.json(events);
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ message: 'שגיאה בשליפת האירועים' });
   }
 };
 
@@ -22,7 +24,7 @@ const createEvent = async (req, res) => {
     await newEvent.save();
     res.status(201).json(newEvent);
   } catch (err) {
-    res.status(400).json({ message: err.message });
+    res.status(400).json({ message: 'שגיאה ביצירת אירוע חדש' });
   }
 };
 
@@ -38,12 +40,12 @@ const updateEvent = async (req, res) => {
     );
 
     if (!updatedEvent) {
-      return res.status(404).json({ message: 'Event not found' });
+      return res.status(404).json({ message: 'אירוע לא נמצא' });
     }
 
     res.json(updatedEvent);
   } catch (err) {
-    res.status(400).json({ message: err.message });
+    res.status(400).json({ message: 'שגיאה בעדכון אירוע' });
   }
 };
 
@@ -54,12 +56,12 @@ const deleteEvent = async (req, res) => {
     const deletedEvent = await Event.findByIdAndDelete(id);
 
     if (!deletedEvent) {
-      return res.status(404).json({ message: 'Event not found' });
+      return res.status(404).json({ message: 'אירוע לא נמצא' });
     }
 
-    res.json({ message: 'Event deleted' });
+    res.json({ message: 'האירוע נמחק בהצלחה' });
   } catch (err) {
-    res.status(400).json({ message: err.message });
+    res.status(400).json({ message: 'שגיאה במחיקת האירוע' });
   }
 };
 
@@ -75,10 +77,10 @@ const deleteEventAndLogs = async (req, res) => {
 
     await Event.findByIdAndDelete(id);
 
-    res.json({ message: 'האירוע וכל הלוגים נמחקו בהצלחה' });
+    res.json({ message: 'האירוע וכל התיעודים נמחקו בהצלחה' });
   } catch (err) {
-    console.error('שגיאה במחיקת אירוע ולוגים:', err);
-    res.status(500).json({ message: 'שגיאה במחיקת אירוע ולוגים' });
+    console.error('שגיאה במחיקת אירוע ותיעודים:', err);
+    res.status(500).json({ message: 'שגיאה במחיקת אירוע ותיעודים' });
   }
 };
 

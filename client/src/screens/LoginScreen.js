@@ -35,7 +35,7 @@ export default function LoginScreen({ navigation }) {
       await AsyncStorage.setItem('user', JSON.stringify(res.data.user));
       navigation.replace('Home');
     } catch (err) {
-      Alert.alert('שגיאה', err.response?.data?.message || 'אירעה שגיאה');
+      Alert.alert('שגיאה', err.response?.data?.message || 'לא ניתן להתחבר. נסה שוב מאוחר יותר.');
     }
   };
 
@@ -72,7 +72,7 @@ export default function LoginScreen({ navigation }) {
         </TouchableOpacity>
 
         <Text style={styles.link} onPress={() => navigation.navigate('SignUp')}>
-          אין לך חשבון? הרשם
+          חדש אצלנו ? הרשם
         </Text>
       </View>
     </ImageBackground>

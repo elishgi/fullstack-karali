@@ -1,6 +1,8 @@
 const Log = require('../models/log.model');
 
+// ניהול תיעודים - כולל: הוספה שליפה עם סינון , ומחיקה .
 
+//שליפת תיעודים עם אפשרויות סינון
 const getAllLogs = async (req, res) => {
   try {
     const { fromDate, toDate, eventName, timeOfDay, eventId } = req.query;
@@ -30,11 +32,11 @@ const getAllLogs = async (req, res) => {
     const logs = await Log.find(filter).sort({ timestamp: -1 });
     res.json(logs);
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ message: 'שגיאה בשליפת התיעודים' });
   }
 };
 
-
+//יצירת תיעוד חדש
 const createLog = async (req, res) => {
   try {
     const { eventId, eventName, comment, imageUri, location } = req.body;
@@ -69,10 +71,11 @@ const createLog = async (req, res) => {
 
     res.status(201).json(newLog);
   } catch (err) {
-    res.status(400).json({ message: err.message });
+    res.status(400).json({ message: 'שגיאה ביצירת תיעוד חדש' });
   }
 };
 
+//מחיקת תיעוד (לפי מזהה)
 const deleteLog = async (req, res) => {
   try {
     const { id } = req.params;
@@ -80,12 +83,12 @@ const deleteLog = async (req, res) => {
     const deletedLog = await Log.findByIdAndDelete(id);
 
     if (!deletedLog) {
-      return res.status(404).json({ message: 'Log not found' });
+      return res.status(404).json({message: 'התיעוד לא נמצא' });
     }
 
-    res.json({ message: 'Log deleted' });
+    res.json({ message: 'התיעוד נמחק בהצלחה' });
   } catch (err) {
-    res.status(400).json({ message: err.message });
+    res.status(400).json({ message: 'שגיאה במחיקת התיעוד' });
   }
 };
 
