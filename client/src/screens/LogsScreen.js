@@ -72,6 +72,7 @@ export default function LogsScreen() {
       const message =
         error?.response?.data?.message || error?.message || 'שגיאה לא ידועה';
       console.error('❌ Error fetching logs:', message);
+      Alert.alert('שגיאה', 'אירעה שגיאה בעת טעינת התיעודים.');
     } finally {
       setLoading(false);
     }

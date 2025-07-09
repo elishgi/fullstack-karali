@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 
+//סכמת האירוע
 const eventSchema = new mongoose.Schema({
     userId: {
         type: mongoose.Schema.Types.ObjectId,

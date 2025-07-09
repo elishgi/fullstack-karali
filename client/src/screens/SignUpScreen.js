@@ -34,22 +34,22 @@ export default function SignUpScreen({ navigation }) {
     }
 
     if (!isValidEmail(email)) {
-      Alert.alert('שגיאה', 'האימייל אינו תקין');
+      Alert.alert('שגיאה', 'אנא הזן כתובת אימייל תקינה');
       return;
     }
 
     if (!isStrongPassword(password)) {
-      Alert.alert('שגיאה', 'הסיסמה חלשה. יש להזין לפחות 6 תווים, כולל אות ומספר');
+      Alert.alert('שגיאה', 'הסיסמה חלשה – יש להזין לפחות 6 תווים, כולל אות אחת ומספר אחד');
       return;
     }
 
     try {
       const res = await api.post('/api/users/signup', { name, email, password });
-      Alert.alert('נרשמת בהצלחה', 'כעת תוכל להתחבר', [
+      Alert.alert('נרשמת בהצלחה! תוכל כעת להתחבר למערכת.', [
         { text: 'אישור', onPress: () => navigation.replace('Login') },
       ]);
     } catch (err) {
-      Alert.alert('שגיאה', err.response?.data?.message || err.message || 'אירעה שגיאה');
+      Alert.alert('שגיאה', err.response?.data?.message || err.message || 'לא ניתן להירשם כעת. נסה שוב מאוחר יותר.');
     }
   };
 

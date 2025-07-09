@@ -2,7 +2,7 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const api = axios.create({
-  baseURL: 'http://192.168.8.111:4000',
+  baseURL: 'http://192.168.9.175:4000',
 });
 
 // Interceptor – הוספת Authorization Header אוטומטית
@@ -17,7 +17,7 @@ api.interceptors.request.use(async (config) => {
 });
 
 
-// ========== Events ==========
+// ========== פעולות על אירועים ==========
 export const getEvents = async () => {
   const res = await api.get('/api/events');
   return res.data;
@@ -43,7 +43,7 @@ export const deleteEventAndLogs = async (eventId) => {
   return res.data;
 };
 
-// ========== Logs ==========
+// ========== פעולות על תיעודים ==========
 export const getLogs = async () => {
   const res = await api.get('/api/logs');
   return res.data;
