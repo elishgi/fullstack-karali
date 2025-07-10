@@ -30,6 +30,8 @@ import {
 import { BlurView } from 'expo-blur';
 import WheelColorPicker from 'react-native-wheel-color-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import EventButton from '../components/EventButton';
+
 
 export default function HomeScreen() {
   const navigation = useNavigation();
@@ -398,109 +400,7 @@ export default function HomeScreen() {
   );
 }
 
-// EventButton:
-const EventButton = ({ item, isEditMode, navigation, onPress, onLongPress, onEditName, onEditColor, onDelete }) => {
-  const scaleAnim = useRef(new Animated.Value(1)).current;
-  const glowOpacity = useRef(new Animated.Value(0)).current;
 
-  const handlePressIn = () => {
-    Animated.parallel([
-      Animated.spring(scaleAnim, {
-        toValue: 0.9,
-        useNativeDriver: true
-      }),
-      Animated.timing(glowOpacity, {
-        toValue: 1,
-        duration: 150,
-        useNativeDriver: true
-      })
-    ]).start();
-  };
-
-  const handlePressOut = () => {
-    Animated.parallel([
-      Animated.spring(scaleAnim, {
-        toValue: 1,
-        friction: 3,
-        tension: 40,
-        useNativeDriver: true
-      }),
-      Animated.timing(glowOpacity, {
-        toValue: 0,
-        duration: 200,
-        useNativeDriver: true
-      })
-    ]).start();
-  };
-
-  return (
-    <TouchableWithoutFeedback
-      onPressIn={handlePressIn}
-      onPressOut={handlePressOut}
-      onPress={isEditMode ? null : onPress}
-      onLongPress={isEditMode ? null : onLongPress}
-      pointerEvents={isEditMode ? 'box-none' : 'auto'}
-    >
-
-      <Animated.View
-        style={[
-          styles.eventButtonWrapper,
-          {
-            transform: [{ scale: scaleAnim }]
-          }
-        ]}
-      >
-        <ImageBackground
-          source={require('../../assets/images/button.png')}
-          style={styles.eventButtonImage}
-          resizeMode="contain"
-        >
-          <View style={[styles.overlay, { backgroundColor: item.color + '88' }]} />
-          <Animated.View
-            style={[
-              styles.glowOverlayWrapper,
-              { opacity: glowOpacity }
-            ]}
-          >
-            <BlurView intensity={50} style={styles.glowOverlay} tint="default">
-              <View
-                style={{
-                  ...StyleSheet.absoluteFillObject,
-                  backgroundColor: item.color + '55',
-                  borderRadius: 999
-                }}
-              />
-            </BlurView>
-          </Animated.View>
-
-          {/* כפתורי עריכה */}
-          {isEditMode && (
-            <View style={styles.editButtonsContainer}>
-              <TouchableOpacity style={styles.editButtonCircle} onPress={onDelete}>
-                <Text style={styles.editButtonIcon}>🗑️</Text>
-              </TouchableOpacity>
-
-
-              <TouchableOpacity style={styles.editButtonCircleColor} onPress={onEditColor}>
-                <Text style={styles.editButtonIcon}>🎨</Text>
-              </TouchableOpacity>
-
-
-              <TouchableOpacity style={styles.editButtonCircle} onPress={onEditName}>
-                <Text style={styles.editButtonIcon}>✏️</Text>
-              </TouchableOpacity>
-
-
-            </View>
-          )}
-
-          <Text style={styles.eventButtonName}>{item.name}</Text>
-          <Text style={styles.eventButtonCount}>{item.totalColor}</Text>
-        </ImageBackground>
-      </Animated.View>
-    </TouchableWithoutFeedback>
-  );
-};
 
 // styles:
 const styles = StyleSheet.create({
