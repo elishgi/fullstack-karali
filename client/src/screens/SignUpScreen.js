@@ -45,18 +45,39 @@ export default function SignUpScreen({ navigation }) {
 
     try {
       const res = await api.post('/api/users/signup', { name, email, password });
+
+      try {
+        await AsyncStorage.setItem('user', JSON.stringify({ name }));
+      } catch (storageError) {
+        console.warn('⚠️ שגיאה ב-AsyncStorage:', storageError);
+      }
+
+      // ✅ הוספת אירוע ברירת מחדל
+      try {
+        await api.post('/api/events', {
+          name: 'אירוע ראשי',
+          color: '#3DD6D0',
+          totalColor: 0
+        });
+      } catch (eventError) {
+        console.warn('⚠️ לא נוצר אירוע ברירת מחדל:', eventError.message);
+      }
+
       Alert.alert('נרשמת בהצלחה! תוכל כעת להתחבר למערכת.', [
         { text: 'אישור', onPress: () => navigation.replace('Login') },
       ]);
+
     } catch (err) {
       Alert.alert('שגיאה', err.response?.data?.message || err.message || 'לא ניתן להירשם כעת. נסה שוב מאוחר יותר.');
     }
+
+
   };
 
   return (
     <ImageBackground source={require('C:/Users/User/fullstack-karali/client/assets/images/background4.png')} style={styles.background}>
       <View style={styles.overlayBox}>
-        <Image source={require('C:/Users/User/fullstack-karali/client/assets/images/logo1.png')} style={styles.logo} />
+        <Image source={require('../../assets/images/logo1.png')} style={styles.logo} />
         <Text style={styles.title}>הרשמה</Text>
 
         <TextInput

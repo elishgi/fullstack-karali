@@ -2,7 +2,7 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const api = axios.create({
-  baseURL: 'http://172.19.37.223:4000',
+  baseURL: 'http://192.168.1.112:4000',
 });
 
 // Interceptor – הוספת Authorization Header אוטומטית
