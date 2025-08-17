@@ -44,23 +44,58 @@ export default function AddDetailedLogScreen() {
 
 
 
-  const handlePickImage = async () => {
-    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (permissionResult.granted === false) {
+  const chooseImageSource = () => {
+    Alert.alert(
+      'הוסף תמונה',
+      'מאיפה תרצה להוסיף?',
+      [
+        { text: 'צלם תמונה', onPress: pickFromCamera },
+        { text: 'בחר מהגלריה', onPress: pickFromGallery },
+        { text: 'ביטול', style: 'cancel' },
+      ],
+      { cancelable: true }
+    );
+  };
+
+  const pickFromCamera = async () => {
+    const camPerm = await ImagePicker.requestCameraPermissionsAsync();
+    if (!camPerm.granted) {
+      Alert.alert('אין הרשאה למצלמה', 'אפשר לאפשר בהגדרות המכשיר ולנסות שוב.');
+      return;
+    }
+
+    const res = await ImagePicker.launchCameraAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 0.8,
+    });
+
+    if (!res.canceled) {
+      setImageUri(res.assets?.[0]?.uri ?? '');
+    }
+  };
+
+  const pickFromGallery = async () => {
+    const libPerm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!libPerm.granted) {
       Alert.alert('אין הרשאה לגלריה');
       return;
     }
 
-    const pickerResult = await ImagePicker.launchImageLibraryAsync({
+    const res = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       aspect: [4, 3],
-      quality: 0.7,
+      quality: 0.8,
     });
 
-    if (!pickerResult.cancelled) {
-      setImageUri(pickerResult.assets[0].uri);
+    // תיקון הבאג: משתמשים ב-canceled (לא cancelled)
+    if (!res.canceled) {
+      setImageUri(res.assets?.[0]?.uri ?? '');
     }
   };
+
 
   const handleGetLocation = async () => {
     const { status } = await Location.requestForegroundPermissionsAsync();
@@ -136,7 +171,7 @@ export default function AddDetailedLogScreen() {
         onChangeText={setComment}
       />
 
-      <Button title="📷 הוסף תמונה" onPress={handlePickImage} />
+      <Button title="📷 הוסף תמונה" onPress={chooseImageSource} />
       {imageUri ? <Image source={{ uri: imageUri }} style={styles.image} /> : null}
 
       <View style={{ height: 20 }} />
