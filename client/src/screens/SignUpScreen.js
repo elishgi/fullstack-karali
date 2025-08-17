@@ -51,27 +51,18 @@ export default function SignUpScreen({ navigation }) {
       } catch (storageError) {
         console.warn('⚠️ שגיאה ב-AsyncStorage:', storageError);
       }
+      Alert.alert(
+        'הרשמה הצליחה',
+        'נרשמת בהצלחה! תוכל כעת להתחבר למערכת.',
+        [
+          { text: 'אישור', onPress: () => navigation.replace('Login') },
+        ]
+      );
 
-      // ✅ הוספת אירוע ברירת מחדל
-      try {
-        await api.post('/api/events', {
-          name: 'אירוע ראשי',
-          color: '#3DD6D0',
-          totalColor: 0
-        });
-      } catch (eventError) {
-        console.warn('⚠️ לא נוצר אירוע ברירת מחדל:', eventError.message);
-      }
-
-      Alert.alert('נרשמת בהצלחה! תוכל כעת להתחבר למערכת.', [
-        { text: 'אישור', onPress: () => navigation.replace('Login') },
-      ]);
 
     } catch (err) {
       Alert.alert('שגיאה', err.response?.data?.message || err.message || 'לא ניתן להירשם כעת. נסה שוב מאוחר יותר.');
     }
-
-
   };
 
   return (
