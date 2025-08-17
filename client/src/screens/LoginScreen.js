@@ -14,7 +14,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../services/api';
 
 export default function LoginScreen({ navigation }) {
-  const [email, setEmail] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
 
   useEffect(() => {
@@ -30,7 +30,7 @@ export default function LoginScreen({ navigation }) {
 
   const handleLogin = async () => {
     try {
-      const res = await api.post('/api/users/login', { email, password });
+      const res = await api.post('/api/users/login', { identifier, password });
       await AsyncStorage.setItem('token', res.data.token);
       await AsyncStorage.setItem('user', JSON.stringify(res.data.user));
       navigation.replace('Home');
@@ -38,6 +38,7 @@ export default function LoginScreen({ navigation }) {
       Alert.alert('שגיאה', err.response?.data?.message || 'לא ניתן להתחבר. נסה שוב מאוחר יותר.');
     }
   };
+
 
   return (
     <ImageBackground
@@ -49,10 +50,10 @@ export default function LoginScreen({ navigation }) {
         <Text style={styles.title}>התחברות</Text>
 
         <TextInput
-          placeholder="אימייל"
+          placeholder="אימייל או שם משתמש"
           style={styles.input}
-          value={email}
-          onChangeText={setEmail}
+          value={identifier}
+          onChangeText={setIdentifier}
           autoCapitalize="none"
           textAlign="right"
           placeholderTextColor="#999"

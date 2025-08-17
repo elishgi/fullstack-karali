@@ -21,14 +21,21 @@ const signup = async (req, res) => {
 };
 
 // מקבל אימייל וסיסמה, מאמת את המשתמש ומחזיר טוקן
+// user.controller.js
+
 const login = async (req, res) => {
   try {
-    const { email, password } = req.body;
-    const user = await User.findOne({ email });
+    const { identifier, password } = req.body;
+    // identifier יכול להיות או אימייל או שם משתמש
+
+    const user = await User.findOne({
+      $or: [{ email: identifier }, { name: identifier }]
+    });
+
     if (!user) return res.status(401).json({ message: 'משתמש לא נמצא' });
 
     const isMatch = await user.comparePassword(password);
-    if (!isMatch) return res.status(401).json({ message: 'אימייל או סיסמה שגויים' });
+    if (!isMatch) return res.status(401).json({ message: 'פרטי התחברות שגויים' });
 
     const token = jwt.sign({ _id: user._id }, JWT_SECRET);
     res.json({ token, user: { _id: user._id, name: user.name } });
@@ -36,5 +43,6 @@ const login = async (req, res) => {
     res.status(500).json({ message: 'שגיאה בהתחברות' });
   }
 };
+
 
 module.exports = { signup, login };
