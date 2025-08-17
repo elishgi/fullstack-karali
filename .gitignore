@@ -6,15 +6,20 @@ client/web-build/
 client/expo-env.d.ts
 client/metro.config.js
 client/.expo-shared/
+client/.env
 
 # === SERVER - Node.js ===
 server/node_modules/
 server/.env
 server/npm-debug.log
+server/dist/
 
 # === Global - Both ===
-
-
+node_modules/
+.env
+.expo/
+dist/
+coverage/
 
 # macOS
 .DS_Store
