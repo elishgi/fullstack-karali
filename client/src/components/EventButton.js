@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { TouchableWithoutFeedback, Animated, View, Text, ImageBackground, StyleSheet } from 'react-native';
+import { TouchableWithoutFeedback, TouchableOpacity, Animated, View, Text, ImageBackground, StyleSheet } from 'react-native';
 import { BlurView } from 'expo-blur';
 
 // הגדרת הקומפוננטה EventButton:

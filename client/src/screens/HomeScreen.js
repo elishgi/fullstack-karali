@@ -24,7 +24,6 @@ import {
   deleteEvent,
   deleteEventAndLogs,
 } from '../services/api';
-import { BlurView } from 'expo-blur';
 import WheelColorPicker from 'react-native-wheel-color-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import EventButton from '../components/EventButton';
@@ -239,15 +238,15 @@ export default function HomeScreen() {
         </View>
       ) : (
         <>
-          {/* שלישיית כפתורים – רק כשיש אירועים */}
-          {hasRevealedButtons && (
-            <Animated.View style={[styles.topButtonsContainer, { opacity: fadeAnim }]}>
+          {/* שלישיית כפתורים – תמיד כשיש אירועים */}
+          {hasEvents && (
+            <View style={styles.topButtonsContainer}>
               <TouchableOpacity
                 style={[styles.topButton, { backgroundColor: '#A68CF1' }]}
                 onPress={() => setIsEditMode(!isEditMode)}
               >
                 <Text style={styles.topButtonText}>
-                  {isEditMode ? '✅ סיים עריכה' : '🖉 מצב עריכה'}
+                  {isEditMode ? '✅ סיים עריכה' : '🎨 מצב עריכה'}
                 </Text>
               </TouchableOpacity>
 
@@ -264,8 +263,9 @@ export default function HomeScreen() {
               >
                 <Text style={styles.topButtonText}>➕ הוסף אירוע</Text>
               </TouchableOpacity>
-            </Animated.View>
+            </View>
           )}
+
 
           {/* רשימת אירועים */}
           <Animated.FlatList
@@ -273,20 +273,6 @@ export default function HomeScreen() {
             numColumns={2}
             columnWrapperStyle={{ justifyContent: 'space-between' }}
             keyExtractor={(item) => item._id}
-            onScroll={(event) => {
-              const yOffset = event.nativeEvent.contentOffset.y;
-
-              if (yOffset < -20 && !hasRevealedButtons) {
-                setHasRevealedButtons(true);
-              }
-
-              if (yOffset > lastScrollY + 10 && hasRevealedButtons) {
-                setHasRevealedButtons(false);
-              }
-
-              setLastScrollY(yOffset);
-            }}
-            scrollEventThrottle={16}
             renderItem={({ item }) => (
               <EventButton
                 item={item}
