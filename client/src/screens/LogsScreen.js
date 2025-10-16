@@ -22,7 +22,6 @@ import api, { getLogs } from '../services/api';
 import { BarChart } from 'react-native-chart-kit';
 import { SwipeListView } from 'react-native-swipe-list-view';
 
-const BASE_URL = 'http://192.168.8.111:4000';
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
 export default function LogsScreen() {
