@@ -5,7 +5,7 @@ const api = axios.create({
   baseURL: process.env.EXPO_PUBLIC_API_URL || 'http://10.0.2.2:4000', // fallback לאמולטור
 });
 
-// Interceptor – הוספת Authorization Header אוטומטית
+
 api.interceptors.request.use(async (config) => {
   const token = await AsyncStorage.getItem('token');
   if (token) {
@@ -14,7 +14,7 @@ api.interceptors.request.use(async (config) => {
   return config;
 }, (error) => Promise.reject(error));
 
-// ===== שאר הפונקציות נשאר כמו אצלך =====
+
 export const getEvents = async () => (await api.get('/api/events')).data;
 export const addEvent = async (newEvent) => (await api.post('/api/events', newEvent)).data;
 export const updateEvent = async (id, updatedEvent) => (await api.put(`/api/events/${id}`, updatedEvent)).data;
