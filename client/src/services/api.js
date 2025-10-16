@@ -2,7 +2,7 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const api = axios.create({
-  baseURL: 'http://192.168.1.112:4000',
+  baseURL: process.env.EXPO_PUBLIC_API_URL || 'http://10.0.2.2:4000', // fallback לאמולטור
 });
 
 // Interceptor – הוספת Authorization Header אוטומטית
@@ -12,52 +12,17 @@ api.interceptors.request.use(async (config) => {
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
-}, (error) => {
-  return Promise.reject(error);
-});
+}, (error) => Promise.reject(error));
 
+// ===== שאר הפונקציות נשאר כמו אצלך =====
+export const getEvents = async () => (await api.get('/api/events')).data;
+export const addEvent = async (newEvent) => (await api.post('/api/events', newEvent)).data;
+export const updateEvent = async (id, updatedEvent) => (await api.put(`/api/events/${id}`, updatedEvent)).data;
+export const deleteEvent = async (id) => (await api.delete(`/api/events/${id}`)).data;
+export const deleteEventAndLogs = async (eventId) => (await api.delete(`/api/eventsWithLogs/${eventId}`)).data;
 
-// ========== פעולות על אירועים ==========
-export const getEvents = async () => {
-  const res = await api.get('/api/events');
-  return res.data;
-};
-
-export const addEvent = async (newEvent) => {
-  const res = await api.post('/api/events', newEvent);
-  return res.data;
-};
-
-export const updateEvent = async (id, updatedEvent) => {
-  const res = await api.put(`/api/events/${id}`, updatedEvent);
-  return res.data;
-};
-
-export const deleteEvent = async (id) => {
-  const res = await api.delete(`/api/events/${id}`);
-  return res.data;
-};
-
-export const deleteEventAndLogs = async (eventId) => {
-  const res = await api.delete(`/api/eventsWithLogs/${eventId}`);
-  return res.data;
-};
-
-// ========== פעולות על תיעודים ==========
-export const getLogs = async () => {
-  const res = await api.get('/api/logs');
-  return res.data;
-};
-
-export const addLog = async (newLog) => {
-  const res = await api.post('/api/logs', newLog);
-  return res.data;
-};
-
-export const deleteLog = async (logId) => {
-  const res = await api.delete(`/api/logs/${logId}`);
-  return res.data;
-};
+export const getLogs = async () => (await api.get('/api/logs')).data;
+export const addLog = async (newLog) => (await api.post('/api/logs', newLog)).data;
+export const deleteLog = async (logId) => (await api.delete(`/api/logs/${logId}`)).data;
 
 export default api;
-
