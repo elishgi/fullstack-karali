@@ -1,8 +1,15 @@
 import React from 'react';
 import AppNavigator from './src/navigation/AppNavigator';
+import { AuthProvider } from '../src/context/AuthContext';
+import { EventsProvider } from './src/context/EventsContext';
 
-//מעביר א תהניהול לקובץ appNavigeitor
+// מעביר את הניהול ל־AppNavigator + עוטף ב־Context Providers
 export default function App() {
-  return <AppNavigator />;
+  return (
+    <AuthProvider>
+      <EventsProvider>
+        <AppNavigator />
+      </EventsProvider>
+    </AuthProvider>
+  );
 }
-

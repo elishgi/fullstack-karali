@@ -1,115 +1,66 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useContext } from 'react';
 import {
-  View,
-  Text,
-  FlatList,
-  TouchableOpacity,
-  ImageBackground,
-  StyleSheet,
-  Animated,
-  Alert,
-  Image,
-  Modal,
-  TextInput,
-  Button,
+  View, Text, FlatList, TouchableOpacity, ImageBackground, StyleSheet,
+  Animated, Alert, Image, Modal, TextInput, Button,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
-
-import {
-  getEvents,
-  updateEvent,
-  addLog,
-  getLogs,
-  deleteLog,
-  deleteEvent,
-  deleteEventAndLogs,
-} from '../services/api';
 import WheelColorPicker from 'react-native-wheel-color-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+
+import {
+  addLog,
+  getLogs,
+  deleteLog as apiDeleteLog,
+} from '../services/api';
+
 import EventButton from '../components/EventButton';
+import { EventsContext } from '../context/EventsContext';
+import { AuthContext } from '../context/AuthContext';
 
 export default function HomeScreen() {
   const navigation = useNavigation();
   const route = useRoute();
 
-  const [events, setEvents] = useState([]);
-  const [isEditMode, setIsEditMode] = useState(false);
+  const { events, refreshEvents, updateEventById, deleteEventById, deleteEventAndLogs } = useContext(EventsContext);
+  const { logout } = useContext(AuthContext);
 
+  const [isEditMode, setIsEditMode] = useState(false);
   const [selectedEventForEditName, setSelectedEventForEditName] = useState(null);
   const [newEventName, setNewEventName] = useState('');
-
   const [selectedEventForColor, setSelectedEventForColor] = useState(null);
   const [newEventColor, setNewEventColor] = useState('');
-
   const [selectedEventForDelete, setSelectedEventForDelete] = useState(null);
-
   const [userName, setUserName] = useState('');
 
   const clickTimeout = useRef(null);
-
-  // כפתורי פעולה עליונים – נחשפים בגלילה רק כשיש אירועים
-  const [hasRevealedButtons, setHasRevealedButtons] = useState(false);
-  const [lastScrollY, setLastScrollY] = useState(0);
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-
   const hasEvents = (events?.length ?? 0) > 0;
 
   useEffect(() => {
-    const loadUser = async () => {
+    (async () => {
       const userData = await AsyncStorage.getItem('user');
-
       if (!userData) {
-        console.warn('🟡 לא נמצא משתמש – מחזיר ל־Login');
         navigation.replace('Login');
         return;
       }
-
       try {
         const parsed = JSON.parse(userData);
-        if (!parsed.name) {
-          console.warn('🔴 נתוני משתמש לא תקינים – מחזיר ל־Login');
-          navigation.replace('Login');
-          return;
-        }
-        setUserName(parsed.name);
-      } catch (e) {
-        console.error('❌ שגיאה בפענוח user:', e);
+        setUserName(parsed?.name || '');
+      } catch {
         navigation.replace('Login');
       }
-    };
-
-    loadUser();
-    fetchEvents();
+    })();
   }, []);
 
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
-      fetchEvents();
+      refreshEvents();
     });
     return unsubscribe;
-  }, [navigation]);
-
-  useEffect(() => {
-    if (hasRevealedButtons && hasEvents) {
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 400,
-        useNativeDriver: true,
-      }).start();
-    } else {
-      fadeAnim.setValue(0);
-    }
-  }, [hasRevealedButtons, hasEvents]);
-
-  const fetchEvents = async () => {
-    const data = await getEvents();
-    setEvents(data);
-  };
+  }, [navigation, refreshEvents]);
 
   const handleLogout = async () => {
     try {
-      await AsyncStorage.removeItem('token');
-      await AsyncStorage.removeItem('user');
+      await logout();
       navigation.replace('Login');
     } catch (error) {
       console.error('שגיאה בהתנתקות:', error);
@@ -119,12 +70,7 @@ export default function HomeScreen() {
 
   const handleSingleClick = async (event) => {
     try {
-      const updatedEvent = {
-        ...event,
-        totalColor: event.totalColor + 1,
-      };
-      await updateEvent(event._id, updatedEvent);
-
+      await updateEventById(event._id, { ...event, totalColor: event.totalColor + 1 });
       const newLog = {
         eventId: event._id,
         eventName: event.name,
@@ -135,25 +81,12 @@ export default function HomeScreen() {
         imageUri: '',
         location: {},
       };
-
       await addLog(newLog);
-      fetchEvents();
+      // אין חובה לרענן — כבר עדכנו לוקאלית, אבל נרענן להבאת הלוגים/מונים מאוששים
+      refreshEvents();
     } catch (error) {
       console.error('Error in handleSingleClick:', error);
     }
-  };
-
-  const getCurrentTimeOfDay = () => {
-    const hour = new Date().getHours();
-    if (hour < 12) return 'בוקר';
-    if (hour < 16) return 'צהריים';
-    if (hour < 20) return 'ערב';
-    return 'לילה';
-  };
-
-  const getCurrentDayOfWeek = () => {
-    const days = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
-    return days[new Date().getDay()];
   };
 
   const handleDoubleClick = async (event) => {
@@ -161,7 +94,6 @@ export default function HomeScreen() {
       Alert.alert('לא ניתן למחוק לחיצה — מונה כבר 0');
       return;
     }
-
     try {
       const allLogs = await getLogs();
       const eventLogs = allLogs
@@ -174,16 +106,10 @@ export default function HomeScreen() {
       }
 
       const lastLog = eventLogs[0];
+      await apiDeleteLog(lastLog._id);
 
-      await deleteLog(lastLog._id);
-
-      const updatedEvent = {
-        ...event,
-        totalColor: event.totalColor - 1,
-      };
-      await updateEvent(event._id, updatedEvent);
-
-      fetchEvents();
+      await updateEventById(event._id, { ...event, totalColor: event.totalColor - 1 });
+      refreshEvents();
     } catch (error) {
       console.error('Error in handleDoubleClick:', error);
     }
@@ -206,7 +132,6 @@ export default function HomeScreen() {
     navigation.navigate('AddDetailedLog', { eventId: event._id });
   };
 
-  // ----- UI -----
   return (
     <ImageBackground
       source={require('../../assets/images/main-background.png')}
@@ -215,60 +140,35 @@ export default function HomeScreen() {
     >
       {/* Header */}
       <View style={styles.header}>
-        <Image
-          source={require('../../assets/images/logo1.png')}
-          style={styles.logo}
-        />
+        <Image source={require('../../assets/images/logo1.png')} style={styles.logo} />
         <Text style={styles.welcome}>ברוך הבא, {userName}</Text>
       </View>
 
-      {/* מצב ריק: אין אירועים */}
       {!hasEvents ? (
         <View style={styles.emptyWrap}>
           <Text style={styles.emptyTitle}>אין אירועים עדיין</Text>
           <Text style={styles.emptySub}>צור את האירוע הראשון שלך כדי להתחיל לתעד</Text>
-
-          <TouchableOpacity
-            style={styles.primaryBtn}
-            onPress={() => navigation.navigate('AddEvent')}
-            activeOpacity={0.85}
-          >
+          <TouchableOpacity style={styles.primaryBtn} onPress={() => navigation.navigate('AddEvent')} activeOpacity={0.85}>
             <Text style={styles.primaryBtnText}>צור אירוע חדש</Text>
           </TouchableOpacity>
         </View>
       ) : (
         <>
-          {/* שלישיית כפתורים – תמיד כשיש אירועים */}
-          {hasEvents && (
-            <View style={styles.topButtonsContainer}>
-              <TouchableOpacity
-                style={[styles.topButton, { backgroundColor: '#A68CF1' }]}
-                onPress={() => setIsEditMode(!isEditMode)}
-              >
-                <Text style={styles.topButtonText}>
-                  {isEditMode ? '✅ סיים עריכה' : '🎨 מצב עריכה'}
-                </Text>
-              </TouchableOpacity>
+          <View style={styles.topButtonsContainer}>
+            <TouchableOpacity style={[styles.topButton, { backgroundColor: '#A68CF1' }]} onPress={() => setIsEditMode(!isEditMode)}>
+              <Text style={styles.topButtonText}>{isEditMode ? '✅ סיים עריכה' : '🎨 מצב עריכה'}</Text>
+            </TouchableOpacity>
 
-              <TouchableOpacity
-                style={[styles.topButton, { backgroundColor: '#66D19E' }]}
-                onPress={() => navigation.navigate('Logs')}
-              >
-                <Text style={styles.topButtonText}>📄 הצג לוגים</Text>
-              </TouchableOpacity>
+            <TouchableOpacity style={[styles.topButton, { backgroundColor: '#66D19E' }]} onPress={() => navigation.navigate('Logs')}>
+              <Text style={styles.topButtonText}>📄 הצג לוגים</Text>
+            </TouchableOpacity>
 
-              <TouchableOpacity
-                style={[styles.topButton, { backgroundColor: '#3DD6D0' }]}
-                onPress={() => navigation.navigate('AddEvent')}
-              >
-                <Text style={styles.topButtonText}>➕ הוסף אירוע</Text>
-              </TouchableOpacity>
-            </View>
-          )}
+            <TouchableOpacity style={[styles.topButton, { backgroundColor: '#3DD6D0' }]} onPress={() => navigation.navigate('AddEvent')}>
+              <Text style={styles.topButtonText}>➕ הוסף אירוע</Text>
+            </TouchableOpacity>
+          </View>
 
-
-          {/* רשימת אירועים */}
-          <Animated.FlatList
+          <FlatList
             data={events}
             numColumns={2}
             columnWrapperStyle={{ justifyContent: 'space-between' }}
@@ -287,19 +187,17 @@ export default function HomeScreen() {
             )}
           />
 
-          {/* התנתקות */}
           <View style={{ padding: 20 }}>
             <Button title="🚪 התנתק" color="gray" onPress={handleLogout} />
           </View>
         </>
       )}
 
-      {/* Modals + Alerts (יישארו כרגיל) */}
+      {/* Modals */}
       <Modal visible={!!selectedEventForColor} transparent animationType="slide">
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>בחר צבע חדש</Text>
-
             <View style={styles.colorPickerWrapper}>
               <View style={styles.colorWheelWrapper}>
                 <WheelColorPicker
@@ -314,22 +212,19 @@ export default function HomeScreen() {
               <TouchableOpacity
                 style={styles.modalButton}
                 onPress={async () => {
-                  await updateEvent(selectedEventForColor._id, {
+                  await updateEventById(selectedEventForColor._id, {
                     name: selectedEventForColor.name,
                     color: newEventColor,
                     totalColor: selectedEventForColor.totalColor,
                   });
-                  fetchEvents();
+                  refreshEvents();
                   setSelectedEventForColor(null);
                 }}
               >
                 <Text style={styles.modalButtonText}>💾 שמור צבע</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity
-                style={styles.modalButton}
-                onPress={() => setSelectedEventForColor(null)}
-              >
+              <TouchableOpacity style={styles.modalButton} onPress={() => setSelectedEventForColor(null)}>
                 <Text style={styles.modalButtonText}>ביטול</Text>
               </TouchableOpacity>
             </View>
@@ -351,22 +246,19 @@ export default function HomeScreen() {
               <TouchableOpacity
                 style={styles.modalButton}
                 onPress={async () => {
-                  await updateEvent(selectedEventForEditName._id, {
+                  await updateEventById(selectedEventForEditName._id, {
                     name: newEventName,
                     color: selectedEventForEditName.color,
                     totalColor: selectedEventForEditName.totalColor,
                   });
-                  fetchEvents();
+                  refreshEvents();
                   setSelectedEventForEditName(null);
                 }}
               >
                 <Text style={styles.modalButtonText}>💾 שמור שם</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity
-                style={styles.modalButton}
-                onPress={() => setSelectedEventForEditName(null)}
-              >
+              <TouchableOpacity style={styles.modalButton} onPress={() => setSelectedEventForEditName(null)}>
                 <Text style={styles.modalButtonText}>ביטול</Text>
               </TouchableOpacity>
             </View>
@@ -382,8 +274,8 @@ export default function HomeScreen() {
             {
               text: '🚮 מחק רק את האירוע',
               onPress: async () => {
-                await deleteEvent(selectedEventForDelete._id);
-                fetchEvents();
+                await deleteEventById(selectedEventForDelete._id);
+                refreshEvents();
                 setSelectedEventForDelete(null);
               },
               style: 'default',
@@ -391,9 +283,8 @@ export default function HomeScreen() {
             {
               text: '🗑️ מחק את האירוע ואת כל התיעודים',
               onPress: async () => {
-                console.log('👉 התחילה מחיקה מלאה');
                 await deleteEventAndLogs(selectedEventForDelete._id);
-                fetchEvents();
+                refreshEvents();
                 setSelectedEventForDelete(null);
               },
               style: 'destructive',
@@ -410,153 +301,44 @@ export default function HomeScreen() {
   );
 }
 
-// styles
+const getCurrentTimeOfDay = () => {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'בוקר';
+  if (hour < 16) return 'צהריים';
+  if (hour < 20) return 'ערב';
+  return 'לילה';
+};
+
+const getCurrentDayOfWeek = () => {
+  const days = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
+  return days[new Date().getDay()];
+};
+
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20, backgroundColor: '#fff' },
-
-  fullBackground: {
-    flex: 1,
-    resizeMode: 'cover',
-  },
-
-  header: {
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-
-  logo: {
-    width: 200,
-    height: 200,
-    resizeMode: 'contain',
-    marginBottom: -60,
-    marginTop: -40,
-  },
-
-  welcome: {
-    fontSize: 15,
-    fontWeight: 'bold',
-    color: '#333',
-    textAlign: 'center',
-    marginTop: -25,
-  },
-
-  // ---- Empty state ----
-  emptyWrap: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 24,
-    gap: 12,
-  },
-  emptyTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-  },
-  emptySub: {
-    fontSize: 14,
-    opacity: 0.7,
-    textAlign: 'center',
-    marginBottom: 12,
-  },
-  primaryBtn: {
-    paddingHorizontal: 18,
-    paddingVertical: 12,
-    borderRadius: 12,
-    backgroundColor: '#3DD6D0',
-  },
-  primaryBtnText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-
-  // ---- Top actions (when events exist) ----
-  topButtonsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 10,
-  },
+  // … (השאר כמו אצלך – לא שיניתי)
+  fullBackground: { flex: 1, resizeMode: 'cover' },
+  header: { alignItems: 'center', marginBottom: 20 },
+  logo: { width: 200, height: 200, resizeMode: 'contain', marginBottom: -60, marginTop: -40 },
+  welcome: { fontSize: 15, fontWeight: 'bold', color: '#333', textAlign: 'center', marginTop: -25 },
+  emptyWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24, gap: 12 },
+  emptyTitle: { fontSize: 22, fontWeight: '700' },
+  emptySub: { fontSize: 14, opacity: 0.7, textAlign: 'center', marginBottom: 12 },
+  primaryBtn: { paddingHorizontal: 18, paddingVertical: 12, borderRadius: 12, backgroundColor: '#3DD6D0' },
+  primaryBtnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  topButtonsContainer: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
   topButton: {
-    flex: 1,
-    marginHorizontal: 5,
-    paddingVertical: 12,
-    backgroundColor: 'rgba(245, 245, 245, 0.8)',
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
+    flex: 1, marginHorizontal: 5, paddingVertical: 12, backgroundColor: 'rgba(245, 245, 245, 0.8)',
+    borderWidth: 1, borderColor: '#ddd', borderRadius: 12, alignItems: 'center', justifyContent: 'center',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 3, elevation: 2,
   },
-  topButtonText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
-    textAlign: 'center',
-  },
-
-  // ---- Modals etc. ----
-  modalContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.4)',
-  },
-  modalContent: {
-    backgroundColor: '#fff',
-    padding: 20,
-    borderRadius: 16,
-    width: 300,
-    alignItems: 'center',
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 15,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 8,
-    padding: 10,
-    width: '100%',
-    marginBottom: 15,
-    fontSize: 16,
-  },
-  colorPickerWrapper: {
-    marginVertical: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  colorWheelWrapper: {
-    width: 200,
-    height: 200,
-    overflow: 'hidden',
-    borderRadius: 100,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalButtonsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    width: '100%',
-    marginTop: 10,
-  },
-  modalButton: {
-    flex: 1,
-    marginHorizontal: 5,
-    paddingVertical: 10,
-    backgroundColor: '#f0f0f0',
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  modalButtonText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
-  },
+  topButtonText: { fontSize: 16, fontWeight: 'bold', color: '#333', textAlign: 'center' },
+  modalContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.4)' },
+  modalContent: { backgroundColor: '#fff', padding: 20, borderRadius: 16, width: 300, alignItems: 'center' },
+  modalTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 15 },
+  input: { borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 10, width: '100%', marginBottom: 15, fontSize: 16 },
+  colorPickerWrapper: { marginVertical: 10, alignItems: 'center', justifyContent: 'center' },
+  colorWheelWrapper: { width: 200, height: 200, overflow: 'hidden', borderRadius: 100, justifyContent: 'center', alignItems: 'center' },
+  modalButtonsRow: { flexDirection: 'row', justifyContent: 'space-between', width: '100%', marginTop: 10 },
+  modalButton: { flex: 1, marginHorizontal: 5, paddingVertical: 10, backgroundColor: '#f0f0f0', borderRadius: 8, alignItems: 'center' },
+  modalButtonText: { fontSize: 16, fontWeight: 'bold', color: '#333' },
 });

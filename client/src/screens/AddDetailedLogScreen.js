@@ -1,72 +1,42 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import {
-  View,
-  Text,
-  TextInput,
-  Button,
-  Image,
-  StyleSheet,
-  Alert,
-  ScrollView,
-  Dimensions,
-  Platform,
-  Linking,
-  Modal
-
+  View, Text, TextInput, Button, Image, StyleSheet, Alert, ScrollView,
+  Dimensions, Platform, Linking, Modal
 } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
-import { addLog, updateEvent, getEvents } from '../services/api';
+import { addLog } from '../services/api';
+import { EventsContext } from '../context/EventsContext';
 
 export default function AddDetailedLogScreen() {
   const navigation = useNavigation();
   const route = useRoute();
   const { eventId } = route.params;
+  const { events, updateEventById } = useContext(EventsContext);
 
   const [address, setAddress] = useState('');
   const [mapVisible, setMapVisible] = useState(false);
-  const [tempRegion, setTempRegion] = useState(null); // לאזור התחלתי במפה
-  const [tempMarker, setTempMarker] = useState(null); // מיקום זמני לפני אישור
-
+  const [tempRegion, setTempRegion] = useState(null);
+  const [tempMarker, setTempMarker] = useState(null);
 
   const [comment, setComment] = useState('');
   const [imageUri, setImageUri] = useState('');
   const [location, setLocation] = useState(null);
-  const [eventName, setEventName] = useState(''); // נוסיף state ל־eventName
+  const [eventName, setEventName] = useState('');
 
   useEffect(() => {
-    const fetchEventName = async () => {
-      try {
-        const allEvents = await getEvents();
-        const currentEvent = allEvents.find((e) => String(e._id) === String(eventId));
-        if (currentEvent) {
-          setEventName(currentEvent.name);
-        } else {
-          console.log('❌ Event not found for eventId:', eventId);
-        }
-      } catch (error) {
-        console.error('Error fetching event name:', error);
-      }
-    };
-
-    fetchEventName();
-  }, [eventId]);
-
-
+    const current = events.find((e) => String(e._id) === String(eventId));
+    if (current) setEventName(current.name);
+  }, [events, eventId]);
 
   const chooseImageSource = () => {
-    Alert.alert(
-      'הוסף תמונה',
-      'מאיפה תרצה להוסיף?',
-      [
-        { text: 'צלם תמונה', onPress: pickFromCamera },
-        { text: 'בחר מהגלריה', onPress: pickFromGallery },
-        { text: 'ביטול', style: 'cancel' },
-      ],
-      { cancelable: true }
-    );
+    Alert.alert('הוסף תמונה', 'מאיפה תרצה להוסיף?', [
+      { text: 'צלם תמונה', onPress: pickFromCamera },
+      { text: 'בחר מהגלריה', onPress: pickFromGallery },
+      { text: 'ביטול', style: 'cancel' },
+    ]);
   };
 
   const pickFromCamera = async () => {
@@ -75,17 +45,13 @@ export default function AddDetailedLogScreen() {
       Alert.alert('אין הרשאה למצלמה', 'אפשר לאפשר בהגדרות המכשיר ולנסות שוב.');
       return;
     }
-
     const res = await ImagePicker.launchCameraAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       aspect: [4, 3],
       quality: 0.8,
     });
-
-    if (!res.canceled) {
-      setImageUri(res.assets?.[0]?.uri ?? '');
-    }
+    if (!res.canceled) setImageUri(res.assets?.[0]?.uri ?? '');
   };
 
   const pickFromGallery = async () => {
@@ -94,31 +60,24 @@ export default function AddDetailedLogScreen() {
       Alert.alert('אין הרשאה לגלריה');
       return;
     }
-
     const res = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       aspect: [4, 3],
       quality: 0.8,
     });
-
-    // תיקון הבאג: משתמשים ב-canceled (לא cancelled)
-    if (!res.canceled) {
-      setImageUri(res.assets?.[0]?.uri ?? '');
-    }
+    if (!res.canceled) setImageUri(res.assets?.[0]?.uri ?? '');
   };
-
 
   const reverseGeocode = async (lat, lng) => {
     try {
       const res = await Location.reverseGeocodeAsync({ latitude: lat, longitude: lng });
       if (res?.[0]) {
         const r = res[0];
-        // בניית כתובת יפה
         const line = [r.name, r.street, r.city, r.region, r.country].filter(Boolean).join(', ');
         return line || 'כתובת לא זמינה';
       }
-    } catch (e) { console.log('reverseGeocode error', e); }
+    } catch {}
     return 'כתובת לא זמינה';
   };
 
@@ -138,14 +97,8 @@ export default function AddDetailedLogScreen() {
   };
 
   const openMapPicker = async () => {
-    // הרשאות קרבה – כדי לקפוץ לאיזור המשתמש במפה
     const perm = await Location.requestForegroundPermissionsAsync();
-    let startRegion = {
-      latitude: 32.0853,
-      longitude: 34.7818,
-      latitudeDelta: 0.05,
-      longitudeDelta: 0.05,
-    };
+    let startRegion = { latitude: 32.0853, longitude: 34.7818, latitudeDelta: 0.05, longitudeDelta: 0.05 };
     if (perm.status === 'granted') {
       try {
         const loc = await Location.getCurrentPositionAsync({});
@@ -155,7 +108,7 @@ export default function AddDetailedLogScreen() {
           latitudeDelta: 0.05,
           longitudeDelta: 0.05,
         };
-      } catch { }
+      } catch {}
     }
     setTempRegion(startRegion);
     setTempMarker(null);
@@ -163,16 +116,11 @@ export default function AddDetailedLogScreen() {
   };
 
   const chooseLocationSource = () => {
-    Alert.alert(
-      'בחר מקור מיקום',
-      'איך ברצונך לבחור מיקום?',
-      [
-        { text: '📍 המיקום הנוכחי', onPress: getCurrentLocation },
-        { text: '🗺️ בחר על מפה', onPress: openMapPicker },
-        { text: 'ביטול', style: 'cancel' },
-      ],
-      { cancelable: true }
-    );
+    Alert.alert('בחר מקור מיקום', 'איך ברצונך לבחור מיקום?', [
+      { text: '📍 המיקום הנוכחי', onPress: getCurrentLocation },
+      { text: '🗺️ בחר על מפה', onPress: openMapPicker },
+      { text: 'ביטול', style: 'cancel' },
+    ]);
   };
 
   const openInMaps = (loc) => {
@@ -185,24 +133,11 @@ export default function AddDetailedLogScreen() {
     Linking.openURL(url);
   };
 
-
   const handleSave = async () => {
     try {
-      let finalEventName = eventName;
-
-      // אם משום מה ה־eventName עדיין ריק → נביא שוב
-      if (finalEventName === '') {
-        const allEvents = await getEvents();
-        const currentEvent = allEvents.find((e) => e._id === eventId);
-        if (currentEvent) {
-          finalEventName = currentEvent.name;
-        }
-      }
-
-      // 1. נוסיף Log חדש
       const newLog = {
-        eventId: eventId,
-        eventName: finalEventName,
+        eventId,
+        eventName,
         timestamp: new Date(),
         timeOfDay: getCurrentTimeOfDay(),
         dayOfWeek: getCurrentDayOfWeek(),
@@ -210,19 +145,12 @@ export default function AddDetailedLogScreen() {
         imageUri: imageUri,
         location: location || {},
       };
-
       await addLog(newLog);
 
-      // 2. נעדכן את המונה ב־Event
-      const allEvents = await getEvents();
-      const currentEvent = allEvents.find((e) => e._id === eventId);
-
-      if (currentEvent) {
-        await updateEvent(eventId, {
-          name: currentEvent.name,
-          color: currentEvent.color,
-          totalColor: currentEvent.totalColor + 1
-        });
+      // העלאת המונה של האירוע
+      const current = events.find((e) => String(e._id) === String(eventId));
+      if (current) {
+        await updateEventById(eventId, { name: current.name, color: current.color, totalColor: current.totalColor + 1 });
       }
 
       Alert.alert('התיעוד נשמר בהצלחה');
@@ -233,18 +161,12 @@ export default function AddDetailedLogScreen() {
     }
   };
 
-
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>הוספת תיעוד מפורט לאירוע</Text>
 
       <Text style={styles.label}>הערה:</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="כתוב הערה כאן..."
-        value={comment}
-        onChangeText={setComment}
-      />
+      <TextInput style={styles.input} placeholder="כתוב הערה כאן..." value={comment} onChangeText={setComment} />
 
       <Button title="📷 הוסף תמונה" onPress={chooseImageSource} />
       {imageUri ? <Image source={{ uri: imageUri }} style={styles.image} /> : null}
@@ -314,8 +236,7 @@ export default function AddDetailedLogScreen() {
                 title="אישור"
                 onPress={async () => {
                   if (!tempMarker) { Alert.alert('בחר/י נקודה על המפה'); return; }
-                  const lat = tempMarker.latitude;
-                  const lng = tempMarker.longitude;
+                  const { latitude: lat, longitude: lng } = tempMarker;
                   setLocation({ lat, lng });
                   const addr = await reverseGeocode(lat, lng);
                   setAddress(addr);
@@ -327,10 +248,7 @@ export default function AddDetailedLogScreen() {
         </View>
       </Modal>
 
-
-
       <View style={{ height: 20 }} />
-
       <Button title="💾 שמור תיעוד" onPress={handleSave} />
     </ScrollView>
   );
@@ -343,7 +261,6 @@ const getCurrentTimeOfDay = () => {
   if (hour < 20) return 'ערב';
   return 'לילה';
 };
-
 const getCurrentDayOfWeek = () => {
   const days = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
   return days[new Date().getDay()];
@@ -353,17 +270,6 @@ const styles = StyleSheet.create({
   container: { padding: 20, backgroundColor: '#fff', flexGrow: 1 },
   title: { fontSize: 24, fontWeight: 'bold', marginBottom: 20, textAlign: 'center' },
   label: { fontSize: 16, marginBottom: 5 },
-  input: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 8,
-    padding: 10,
-    marginBottom: 15,
-  },
-  image: {
-    width: '100%',
-    height: 200,
-    marginVertical: 10,
-    borderRadius: 8,
-  },
+  input: { borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 10, marginBottom: 15 },
+  image: { width: '100%', height: 200, marginVertical: 10, borderRadius: 8 },
 });

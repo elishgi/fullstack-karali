@@ -1,33 +1,28 @@
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
 import { View, Text, TextInput, Button, StyleSheet, Alert, ScrollView } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { addEvent } from '../services/api';
 import WheelColorPicker from 'react-native-wheel-color-picker';
+import { EventsContext } from '../context/EventsContext';
 
 export default function AddEventScreen() {
   const navigation = useNavigation();
+  const { addEvent } = useContext(EventsContext);
+
   const [name, setName] = useState('');
   const [color, setColor] = useState('#000000');
 
   const handleAddEvent = async () => {
     if (!name.trim()) {
-      Alert.alert("אנא הזן שם לאירוע לפני ההוספה");
+      Alert.alert('אנא הזן שם לאירוע לפני ההוספה');
       return;
     }
-
-    const newEvent = {
-      name,
-      color,
-      totalColor: 0,
-    };
-
     try {
-      await addEvent(newEvent);
+      await addEvent({ name, color, totalColor: 0 });
       Alert.alert('אירוע חדש נוסף בהצלחה');
-      navigation.navigate('Home', { refresh: true });
+      navigation.navigate('Home');
     } catch (error) {
       console.error('שגיאה בהוספת אירוע:', error);
-      Alert.alert("אירעה שגיאה בעת הוספת האירוע. נסה שוב.");
+      Alert.alert('אירעה שגיאה בעת הוספת האירוע. נסה שוב.');
     }
   };
 
@@ -36,20 +31,11 @@ export default function AddEventScreen() {
       <Text style={styles.title}>הוספת אירוע חדש</Text>
 
       <Text style={styles.label}>שם האירוע:</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="הכנס שם אירוע"
-        value={name}
-        onChangeText={setName}
-      />
+      <TextInput style={styles.input} placeholder="הכנס שם אירוע" value={name} onChangeText={setName} />
 
       <Text style={styles.label}>בחר צבע:</Text>
       <View style={styles.colorPickerWrapper}>
-        <WheelColorPicker
-          color={color}
-          onColorChangeComplete={(selectedColor) => setColor(selectedColor)}
-          style={styles.colorPicker}
-        />
+        <WheelColorPicker color={color} onColorChangeComplete={setColor} style={styles.colorPicker} />
       </View>
 
       <Text style={styles.label}>תצוגת צבע נבחר:</Text>
@@ -60,51 +46,15 @@ export default function AddEventScreen() {
       </View>
     </ScrollView>
   );
-
 }
 
 const styles = StyleSheet.create({
   container: { padding: 20, backgroundColor: '#fff', flexGrow: 1 },
-  title: {
-    fontSize: 26,
-    fontWeight: 'bold',
-    marginBottom: 30,
-    textAlign: 'center',
-    color: '#333',
-  },
-  label: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 10,
-    color: '#555',
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 25,
-    fontSize: 16,
-  },
-  colorPickerWrapper: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 30,
-  },
-  colorPicker: {
-    width: 250,
-    height: 250,
-  },
-  colorPreview: {
-    width: '100%',
-    height: 50,
-    borderRadius: 10,
-    marginBottom: 30,
-    borderWidth: 1,
-    borderColor: '#ccc',
-  },
-  buttonWrapper: {
-    marginBottom: 50,
-  },
+  title: { fontSize: 26, fontWeight: 'bold', marginBottom: 30, textAlign: 'center', color: '#333' },
+  label: { fontSize: 18, fontWeight: '600', marginBottom: 10, color: '#555' },
+  input: { borderWidth: 1, borderColor: '#ccc', borderRadius: 10, padding: 12, marginBottom: 25, fontSize: 16 },
+  colorPickerWrapper: { alignItems: 'center', justifyContent: 'center', marginBottom: 30 },
+  colorPicker: { width: 250, height: 250 },
+  colorPreview: { width: '100%', height: 50, borderRadius: 10, marginBottom: 30, borderWidth: 1, borderColor: '#ccc' },
+  buttonWrapper: { marginBottom: 50 },
 });
-

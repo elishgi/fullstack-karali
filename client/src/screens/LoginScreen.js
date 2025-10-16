@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import {
   View,
   Text,
@@ -11,11 +10,12 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import api from '../services/api';
+import { AuthContext } from './context/AuthContext';
 
 export default function LoginScreen({ navigation }) {
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
+  const { login } = useContext(AuthContext);
 
   useEffect(() => {
     const checkLogin = async () => {
@@ -30,19 +30,16 @@ export default function LoginScreen({ navigation }) {
 
   const handleLogin = async () => {
     try {
-      const res = await api.post('/api/users/login', { identifier, password });
-      await AsyncStorage.setItem('token', res.data.token);
-      await AsyncStorage.setItem('user', JSON.stringify(res.data.user));
+      await login(identifier, password);
       navigation.replace('Home');
     } catch (err) {
       Alert.alert('שגיאה', err.response?.data?.message || 'לא ניתן להתחבר. נסה שוב מאוחר יותר.');
     }
   };
 
-
   return (
     <ImageBackground
-      source={require('../../client/assets/images/backgroundCool.png')}
+      source={require('../../assets/images/backgroundCool.png')}
       style={styles.background}
     >
       <View style={styles.overlayBox}>
@@ -102,7 +99,6 @@ const styles = StyleSheet.create({
     resizeMode: 'contain',
     alignSelf: 'center',
   },
-
   title: {
     fontSize: 25,
     marginBottom: 20,
