@@ -42,11 +42,11 @@ export default function LoginScreen({ navigation }) {
 
   return (
     <ImageBackground
-      source={require('../../client/assets/images/backgroundCool.png')}
+      source={require('C:/Users/User/fullstack-karali/client/assets/images/backgroundCool.png')}
       style={styles.background}
     >
       <View style={styles.overlayBox}>
-        <Image source={require('../../assets/images/logo1.png')} style={styles.logo} />
+        <Image source={require('C:/Users/User/fullstack-karali/client/assets/images/logo1.png')} style={styles.logo} />
         <Text style={styles.title}>התחברות</Text>
 
         <TextInput
