@@ -50,3 +50,6 @@ yarn-error.*
 
 # Build
 build/
+
+#client/.env
+.env

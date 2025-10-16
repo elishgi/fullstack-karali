@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 
-//סכמת התיעוד 
+//סכמת התיעוד של האירוע
 const logSchema = new mongoose.Schema({
   userId: {
     type: mongoose.Schema.Types.ObjectId,
