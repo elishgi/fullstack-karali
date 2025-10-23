@@ -1,3 +1,4 @@
+// src/screens/HomeScreen.js
 import React, { useEffect, useState, useRef } from 'react';
 import {
   View,
@@ -14,19 +15,21 @@ import {
   Button,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import {
   getEvents,
   updateEvent,
   addLog,
   getLogs,
-  deleteLog,
+  deleteLog as deleteLogApi,
   deleteEvent,
   deleteEventAndLogs,
 } from '../services/api';
 import WheelColorPicker from 'react-native-wheel-color-picker';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import EventButton from '../components/EventButton';
+import UserSidebar from '../components/UserSidebar';
 
 export default function HomeScreen() {
   const navigation = useNavigation();
@@ -44,10 +47,20 @@ export default function HomeScreen() {
   const [selectedEventForDelete, setSelectedEventForDelete] = useState(null);
 
   const [userName, setUserName] = useState('');
+  const [userObj, setUserObj] = useState(null);
+
+  const [sidebarVisible, setSidebarVisible] = useState(false);
+  const [sidebarInitialTab, setSidebarInitialTab] = useState(0);
+  const [hasUnreadNotif, setHasUnreadNotif] = useState(false);
+
+  // פילטר/מיון
+  const [showPersonal, setShowPersonal] = useState(true);
+  const [showShared, setShowShared] = useState(true);
+  const [sortModalVisible, setSortModalVisible] = useState(false);
+  const [sortMode, setSortMode] = useState('none'); // 'none' | 'lastPress' | 'popularity' | 'createdAt'
 
   const clickTimeout = useRef(null);
 
-  // כפתורי פעולה עליונים – נחשפים בגלילה רק כשיש אירועים
   const [hasRevealedButtons, setHasRevealedButtons] = useState(false);
   const [lastScrollY, setLastScrollY] = useState(0);
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -66,12 +79,10 @@ export default function HomeScreen() {
 
       try {
         const parsed = JSON.parse(userData);
-        if (!parsed.name) {
-          console.warn('🔴 נתוני משתמש לא תקינים – מחזיר ל־Login');
-          navigation.replace('Login');
-          return;
-        }
-        setUserName(parsed.name);
+        // אפשר שיגיע מה-Login (אובייקט מלא) או מה-SignUp (שם בלבד)
+        const name = parsed?.name || 'ללא שם';
+        setUserName(name);
+        setUserObj(parsed);
       } catch (e) {
         console.error('❌ שגיאה בפענוח user:', e);
         navigation.replace('Login');
@@ -85,9 +96,49 @@ export default function HomeScreen() {
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
       fetchEvents();
+      refreshUnread();
     });
     return unsubscribe;
   }, [navigation]);
+
+  useEffect(() => {
+    if (!sidebarVisible) {
+      // בכל סגירה של הסייד־בר נרענן
+      refreshUnread();
+    }
+  }, [sidebarVisible]);
+
+  // HomeScreen.js
+const NOTIF_KEY = 'notifications';
+const NOTIF_UNREAD_KEY = 'notifications_unread_count';
+
+const ensureDemoNotification = async () => {
+  const raw = await AsyncStorage.getItem(NOTIF_KEY);
+  if (raw) return; // כבר קיים – לא נדרוס
+
+  const demo = [{
+    id: 'demo-1',
+    title: 'חדש! שיתוף אירועים',
+    body: 'מהיום אפשר לשתף את האירועים שלכם עם חברים! לכו לנסות',
+    read: false, // ← חשוב! חייב להיות false
+    createdAt: new Date().toISOString(),
+    starred: false,
+  }];
+
+  await AsyncStorage.setItem(NOTIF_KEY, JSON.stringify(demo));
+  await AsyncStorage.setItem(NOTIF_UNREAD_KEY, '1'); 
+};
+
+const refreshUnread = async () => {
+  try {
+    await ensureDemoNotification();
+    const cnt = await AsyncStorage.getItem(NOTIF_UNREAD_KEY);
+    setHasUnreadNotif((cnt && Number(cnt) > 0) ? true : false);
+  } catch {
+    setHasUnreadNotif(false);
+  }
+};
+
 
   useEffect(() => {
     if (hasRevealedButtons && hasEvents) {
@@ -101,6 +152,8 @@ export default function HomeScreen() {
     }
   }, [hasRevealedButtons, hasEvents]);
 
+
+
   const fetchEvents = async () => {
     const data = await getEvents();
     setEvents(data);
@@ -110,6 +163,7 @@ export default function HomeScreen() {
     try {
       await AsyncStorage.removeItem('token');
       await AsyncStorage.removeItem('user');
+      await AsyncStorage.removeItem('profileImageUri');
       navigation.replace('Login');
     } catch (error) {
       console.error('שגיאה בהתנתקות:', error);
@@ -122,8 +176,10 @@ export default function HomeScreen() {
       const updatedEvent = {
         ...event,
         totalColor: event.totalColor + 1,
+        lastPressedAt: new Date().toISOString(),
       };
       await updateEvent(event._id, updatedEvent);
+      setEvents(prev => prev.map(e => e._id === event._id ? { ...e, ...updatedEvent } : e));
 
       const newLog = {
         eventId: event._id,
@@ -156,6 +212,57 @@ export default function HomeScreen() {
     return days[new Date().getDay()];
   };
 
+  // חלוקה: אישי/משותף
+  const filterEvents = (items) => {
+    return items.filter(ev => {
+      if (showPersonal && showShared) return true;
+      if (showPersonal && !ev.shared) return true;
+      if (showShared && ev.shared) return true;
+      return false;
+    });
+  };
+
+  // חילוץ createdAt: אם אין בשדה, מנסים מ-ObjectId של Mongo (אופציונלי)
+  const getCreatedAt = (ev) => {
+    if (ev.createdAt) return new Date(ev.createdAt);
+    // ניסיון חילוץ מטיימסטמפ ב-ObjectId (אם זה מונגו) — אם לא בטוח, נחזיר 0
+    try {
+      if (typeof ev._id === 'string' && ev._id.length >= 8) {
+        const tsHex = ev._id.substring(0, 8);
+        const ts = parseInt(tsHex, 16) * 1000;
+        return new Date(ts);
+      }
+    } catch (_) { }
+    return new Date(0);
+  };
+
+  const getLastPress = (ev) => {
+    if (!ev.lastPressedAt) return new Date(0);
+    const d = new Date(ev.lastPressedAt);
+    return isNaN(d.getTime()) ? new Date(0) : d;
+  };
+
+  const sortEvents = (items) => {
+    if (sortMode === 'none') return items;
+    const arr = [...items];
+    switch (sortMode) {
+      case 'none':
+        return items;
+      case 'createdAt':
+        arr.sort((a, b) => getCreatedAt(b) - getCreatedAt(a));
+        break;
+      case 'popularity':
+        arr.sort((a, b) => (b.totalColor || 0) - (a.totalColor || 0));
+        break;
+      case 'lastPress':
+      default:
+        arr.sort((a, b) => getLastPress(b) - getLastPress(a));
+        break;
+    }
+    return arr;
+  };
+
+
   const handleDoubleClick = async (event) => {
     if (event.totalColor <= 0) {
       Alert.alert('לא ניתן למחוק לחיצה — מונה כבר 0');
@@ -175,7 +282,7 @@ export default function HomeScreen() {
 
       const lastLog = eventLogs[0];
 
-      await deleteLog(lastLog._id);
+      await deleteLogApi(lastLog._id);
 
       const updatedEvent = {
         ...event,
@@ -215,6 +322,25 @@ export default function HomeScreen() {
     >
       {/* Header */}
       <View style={styles.header}>
+        <TouchableOpacity
+          onPress={() => { setSidebarInitialTab(0); setSidebarVisible(true); }}
+          style={styles.menuBtn}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.menuIcon}>☰</Text>
+        </TouchableOpacity>
+
+        {/* כפתור הפעמון – צד ימין, אותו סגנון */}
+        <TouchableOpacity
+          onPress={() => { setSidebarInitialTab('notifications'); setSidebarVisible(true); }}
+          style={styles.bellBtn}
+          activeOpacity={0.7}
+          accessibilityLabel="פתח התראות"
+        >
+          <Ionicons name="notifications-outline" size={22} color="#000" />
+          {hasUnreadNotif && <View style={styles.bellDot} />}
+        </TouchableOpacity>
+
         <Image
           source={require('../../assets/images/logo1.png')}
           style={styles.logo}
@@ -266,10 +392,54 @@ export default function HomeScreen() {
             </View>
           )}
 
+          {/* פס מצבי תצוגה + פילטר */}
+          {hasEvents && (
+            <View style={styles.filterBar}>
+              <TouchableOpacity
+                style={[styles.filterPill, showPersonal ? styles.filterPillActive : null]}
+                onPress={() => {
+                  setShowPersonal(v => {
+                    // אם כרגע שניהם דלוקים – מותר לכבות אישי
+                    if (v && !showShared) return true; // אל תכבה אם משותף כבוי – חייב אחד דולק
+                    return !v;
+                  });
+                }}
+                activeOpacity={0.85}
+              >
+                <Text style={[styles.filterPillText, showPersonal ? styles.filterPillTextActive : null]}>
+                  👤 אירועים אישיים
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.filterPill, showShared ? styles.filterPillActive : null]}
+                onPress={() => {
+                  setShowShared(v => {
+                    if (v && !showPersonal) return true; // אל תכבה אם אישי כבוי – חייב אחד דולק
+                    return !v;
+                  });
+                }}
+                activeOpacity={0.85}
+              >
+                <Text style={[styles.filterPillText, showShared ? styles.filterPillTextActive : null]}>
+                  🤝 אירועים משותפים
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.filterIconBtn}
+                onPress={() => setSortModalVisible(true)}
+                activeOpacity={0.85}
+                accessibilityLabel="סינון ומיון לוגים"
+              >
+                <Ionicons name="filter-outline" size={22} color="#333" />
+              </TouchableOpacity>
+            </View>
+          )}
 
           {/* רשימת אירועים */}
           <Animated.FlatList
-            data={events}
+            data={sortEvents(filterEvents(events))}
             numColumns={2}
             columnWrapperStyle={{ justifyContent: 'space-between' }}
             keyExtractor={(item) => item._id}
@@ -287,14 +457,11 @@ export default function HomeScreen() {
             )}
           />
 
-          {/* התנתקות */}
-          <View style={{ padding: 20 }}>
-            <Button title="🚪 התנתק" color="gray" onPress={handleLogout} />
-          </View>
+
         </>
       )}
 
-      {/* Modals + Alerts (יישארו כרגיל) */}
+      {/* Modals + Alerts (קיים) */}
       <Modal visible={!!selectedEventForColor} transparent animationType="slide">
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
@@ -374,6 +541,42 @@ export default function HomeScreen() {
         </View>
       </Modal>
 
+      {/* Modal: מיון */}
+      <Modal visible={sortModalVisible} transparent animationType="fade">
+        <View style={styles.modalContainer}>
+          <View style={[styles.modalContent, { width: 320 }]}>
+            <Text style={styles.modalTitle}>מיון לוגים/אירועים</Text>
+
+            {[
+              { key: 'none', label: 'ללא מיון (סדר מקורי)' },
+              { key: 'lastPress', label: 'לפי זמן לחיצה אחרונה' },
+              { key: 'popularity', label: 'לפי פופולריות (סה״כ לחיצות)' },
+              { key: 'createdAt', label: 'לפי זמן יצירה' },
+            ].map(opt => {
+              const active = sortMode === opt.key;
+              return (
+                <TouchableOpacity
+                  key={opt.key}
+                  onPress={() => setSortMode(opt.key)}
+                  style={[styles.sortRow, active && styles.sortRowActive]}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.radio, active && styles.radioActive]} />
+                  <Text style={[styles.sortText, active && styles.sortTextActive]}>{opt.label}</Text>
+                </TouchableOpacity>
+              );
+            })}
+
+            <View style={styles.modalButtonsRow}>
+              <TouchableOpacity style={styles.modalButton} onPress={() => setSortModalVisible(false)}>
+                <Text style={styles.modalButtonText}>סגור</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+
       {selectedEventForDelete &&
         Alert.alert(
           'מחיקת אירוע',
@@ -391,7 +594,6 @@ export default function HomeScreen() {
             {
               text: '🗑️ מחק את האירוע ואת כל התיעודים',
               onPress: async () => {
-                console.log('👉 התחילה מחיקה מלאה');
                 await deleteEventAndLogs(selectedEventForDelete._id);
                 fetchEvents();
                 setSelectedEventForDelete(null);
@@ -406,6 +608,15 @@ export default function HomeScreen() {
           ],
           { cancelable: true }
         )}
+
+      {/* 🔹 חלון צד עם פרופיל ותמונה עגולה */}
+      <UserSidebar
+        visible={sidebarVisible}
+        onClose={() => setSidebarVisible(false)}
+        user={userObj}
+        onLogout={handleLogout}
+        initialTab={sidebarInitialTab}
+      />
     </ImageBackground>
   );
 }
@@ -422,6 +633,44 @@ const styles = StyleSheet.create({
   header: {
     alignItems: 'center',
     marginBottom: 20,
+    paddingTop: 8,
+  },
+
+  menuBtn: {
+    position: 'absolute',
+    left: 20,
+    top: 60,
+    zIndex: 10,
+    backgroundColor: 'rgba(255,255,255,0.8)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#eee',
+  },
+  menuIcon: { fontSize: 22 },
+
+  bellBtn: {
+    position: 'absolute',
+    right: 20,
+    top: 60,
+    zIndex: 10,
+    backgroundColor: 'rgba(255,255,255,0.8)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#eee',
+  },
+
+  bellDot: {
+    position: 'absolute',
+    top: 2,
+    right: 2,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#E53935',
   },
 
   logo: {
@@ -498,6 +747,67 @@ const styles = StyleSheet.create({
     color: '#333',
     textAlign: 'center',
   },
+
+
+  /* --- Filter bar --- */
+  filterBar: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
+  filterPill: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    backgroundColor: '#f7f7f7',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  filterPillActive: {
+    backgroundColor: '#eef6ff',
+    borderColor: '#bcd9ff',
+  },
+  filterPillText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+  },
+  filterPillTextActive: { color: '#0b69ff' },
+  filterIconBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  /* --- Sort modal --- */
+  sortRow: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    width: '100%',
+    paddingVertical: 10,
+    paddingHorizontal: 6,
+    borderRadius: 10,
+  },
+  sortRowActive: { backgroundColor: '#f3f8ff' },
+  radio: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 2,
+    borderColor: '#ccc',
+    marginLeft: 8,
+  },
+  radioActive: { borderColor: '#0b69ff', backgroundColor: '#0b69ff22' },
+  sortText: { fontSize: 15, color: '#333' },
+  sortTextActive: { color: '#0b69ff', fontWeight: '700' },
 
   // ---- Modals etc. ----
   modalContainer: {
