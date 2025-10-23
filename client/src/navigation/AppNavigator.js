@@ -1,3 +1,4 @@
+// ../navigation/AppNavigator.js
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -17,10 +18,10 @@ export default function AppNavigator() {
       <Stack.Navigator initialRouteName="Login" screenOptions={{ headerShown: false }}>
         <Stack.Screen name="Login" component={LoginScreen} />
         <Stack.Screen name="SignUp" component={SignUpScreen} />
-        <Stack.Screen name="Home" component={HomeScreen} options={{ title: 'אירועים' }} />
-        <Stack.Screen name="AddEvent" component={AddEventScreen} options={{ title: 'הוספת אירוע' }} />
-        <Stack.Screen name="Logs" component={LogsScreen} options={{ title: 'לוגים' }} />
-        <Stack.Screen name="AddDetailedLog" component={AddDetailedLogScreen} options={{ title: 'הוספת תיעוד מפורט' }} />
+        <Stack.Screen name="Home" component={HomeScreen} />
+        <Stack.Screen name="AddEvent" component={AddEventScreen} />
+        <Stack.Screen name="Logs" component={LogsScreen} />
+        <Stack.Screen name="AddDetailedLog" component={AddDetailedLogScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );
