@@ -109,35 +109,35 @@ export default function HomeScreen() {
   }, [sidebarVisible]);
 
   // HomeScreen.js
-const NOTIF_KEY = 'notifications';
-const NOTIF_UNREAD_KEY = 'notifications_unread_count';
+  const NOTIF_KEY = 'notifications';
+  const NOTIF_UNREAD_KEY = 'notifications_unread_count';
 
-const ensureDemoNotification = async () => {
-  const raw = await AsyncStorage.getItem(NOTIF_KEY);
-  if (raw) return; // כבר קיים – לא נדרוס
+  const ensureDemoNotification = async () => {
+    const raw = await AsyncStorage.getItem(NOTIF_KEY);
+    if (raw) return; // כבר קיים – לא נדרוס
 
-  const demo = [{
-    id: 'demo-1',
-    title: 'חדש! שיתוף אירועים',
-    body: 'מהיום אפשר לשתף את האירועים שלכם עם חברים! לכו לנסות',
-    read: false, // ← חשוב! חייב להיות false
-    createdAt: new Date().toISOString(),
-    starred: false,
-  }];
+    const demo = [{
+      id: 'demo-1',
+      title: 'חדש! שיתוף אירועים',
+      body: 'מהיום אפשר לשתף את האירועים שלכם עם חברים! לכו לנסות',
+      read: false, // ← חשוב! חייב להיות false
+      createdAt: new Date().toISOString(),
+      starred: false,
+    }];
 
-  await AsyncStorage.setItem(NOTIF_KEY, JSON.stringify(demo));
-  await AsyncStorage.setItem(NOTIF_UNREAD_KEY, '1'); 
-};
+    await AsyncStorage.setItem(NOTIF_KEY, JSON.stringify(demo));
+    await AsyncStorage.setItem(NOTIF_UNREAD_KEY, '1');
+  };
 
-const refreshUnread = async () => {
-  try {
-    await ensureDemoNotification();
-    const cnt = await AsyncStorage.getItem(NOTIF_UNREAD_KEY);
-    setHasUnreadNotif((cnt && Number(cnt) > 0) ? true : false);
-  } catch {
-    setHasUnreadNotif(false);
-  }
-};
+  const refreshUnread = async () => {
+    try {
+      await ensureDemoNotification();
+      const cnt = await AsyncStorage.getItem(NOTIF_UNREAD_KEY);
+      setHasUnreadNotif((cnt && Number(cnt) > 0) ? true : false);
+    } catch {
+      setHasUnreadNotif(false);
+    }
+  };
 
 
   useEffect(() => {
@@ -366,7 +366,10 @@ const refreshUnread = async () => {
         <>
           {/* שלישיית כפתורים – תמיד כשיש אירועים */}
           {hasEvents && (
-            <View style={styles.topButtonsContainer}>
+            <View
+              style={[styles.topButtonsContainer, sidebarVisible && { opacity: 0 }]}
+              pointerEvents={sidebarVisible ? 'none' : 'auto'}
+            >
               <TouchableOpacity
                 style={[styles.topButton, { backgroundColor: '#A68CF1' }]}
                 onPress={() => setIsEditMode(!isEditMode)}
