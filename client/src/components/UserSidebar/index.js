@@ -3,12 +3,13 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
     View, Text, StyleSheet, TouchableOpacity, Animated, Dimensions,
     Image, Alert, Modal, TouchableWithoutFeedback, Platform,
-    TextInput, KeyboardAvoidingView, ScrollView
+    TextInput, KeyboardAvoidingView, ScrollView, ActivityIndicator
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { deleteAccount, resetAccount } from '../../services/api';
 
 
 // ----- Notifications state -----
@@ -59,6 +60,7 @@ function UserSidebar({ visible, onClose, user, onLogout, onUserUpdated, initialT
     const [searchExisting, setSearchExisting] = useState('');
     const [searchById, setSearchById] = useState('');
     const [sharedEventsCount, setSharedEventsCount] = useState(0);
+    const [accountActionLoading, setAccountActionLoading] = useState(false);
 
     const persistFriends = async (list) => {
         setFriends(list);
@@ -983,14 +985,167 @@ function UserSidebar({ visible, onClose, user, onLogout, onUserUpdated, initialT
 
 
 
-    const SettingsPanel = () => (
-        <View style={styles.panelInner} collapsable={false} renderToHardwareTextureAndroid>
-            <SubHeader title="הגדרות" onBack={() => setActiveIndex(0)} />
-            <View style={styles.placeholderBox}>
-                <Text style={styles.placeholderText}>הגדרות כלליות — בקרוב.</Text>
+    const SettingsPanel = () => {
+        const performDeleteAccount = async () => {
+            try {
+                setAccountActionLoading(true);
+                await deleteAccount();
+                await AsyncStorage.multiRemove([
+                    'token',
+                    'user',
+                    'profileImageUri',
+                    NOTIF_KEY,
+                    NOTIF_UNREAD_KEY,
+                    FRIENDS_KEY,
+                    SHARED_EVENTS_COUNT_KEY,
+                ]);
+
+                Alert.alert(
+                    'החשבון נמחק',
+                    'כל הנתונים נמחקו בהצלחה. נעביר אותך למסך ההתחברות.',
+                    [
+                        {
+                            text: 'הבנתי',
+                            onPress: () => {
+                                onClose && onClose();
+                                onLogout && onLogout();
+                            },
+                        },
+                    ],
+                    { cancelable: false }
+                );
+            } catch (error) {
+                console.error('Delete account error', error);
+                Alert.alert('שגיאה', 'לא הצלחנו למחוק את החשבון. נסה שוב מאוחר יותר.');
+            } finally {
+                setAccountActionLoading(false);
+            }
+        };
+
+        const confirmDeleteAccount = () => {
+            if (accountActionLoading) return;
+            Alert.alert(
+                'מחיקת חשבון',
+                'האם אתה בטוח שברצונך למחוק את החשבון? פעולה זו תמחק לצמיתות את המשתמש, כל האירועים וכל התיעודים מהמערכת.',
+                [
+                    { text: 'ביטול', style: 'cancel' },
+                    {
+                        text: 'כן, מחק לצמיתות',
+                        style: 'destructive',
+                        onPress: () => performDeleteAccount(),
+                    },
+                ]
+            );
+        };
+
+        const performResetAccount = async () => {
+            try {
+                setAccountActionLoading(true);
+                await resetAccount();
+                Alert.alert(
+                    'החשבון אופס',
+                    'כל האירועים והתיעודים שלך הוסרו מהמערכת. ניתן ליצור אירועים חדשים מיד. לרענון הרשימה חזור למסך הראשי.',
+                    [
+                        {
+                            text: 'הבנתי',
+                            onPress: () => {
+                                setActiveIndex(0);
+                            },
+                        },
+                    ],
+                    { cancelable: false }
+                );
+            } catch (error) {
+                console.error('Reset account error', error);
+                Alert.alert('שגיאה', 'לא הצלחנו לאפס את החשבון. נסה שוב מאוחר יותר.');
+            } finally {
+                setAccountActionLoading(false);
+            }
+        };
+
+        const confirmResetAccount = () => {
+            if (accountActionLoading) return;
+            Alert.alert(
+                'איפוס חשבון',
+                'האם לאפס את החשבון? פעולה זו תמחק מהמסד את כל האירועים והתיעודים, אך תשמור על פרטי ההתחברות שלך.',
+                [
+                    { text: 'ביטול', style: 'cancel' },
+                    {
+                        text: 'כן, אפס הכול',
+                        style: 'destructive',
+                        onPress: () => performResetAccount(),
+                    },
+                ]
+            );
+        };
+
+        return (
+            <View style={styles.panelInner} collapsable={false} renderToHardwareTextureAndroid>
+                <SubHeader title="הגדרות" onBack={() => setActiveIndex(0)} />
+                <View style={styles.settingsSection}>
+                    <Text style={styles.settingsIntro}>
+                        פעולות מתקדמות לניהול החשבון. אנא קרא את ההסבר והבן את המשמעות לפני הפעלתן.
+                    </Text>
+
+                    <TouchableOpacity
+                        style={[
+                            styles.dangerActionBase,
+                            styles.dangerActionPrimary,
+                            accountActionLoading && styles.dangerActionDisabled,
+                        ]}
+                        onPress={confirmDeleteAccount}
+                        activeOpacity={0.85}
+                        disabled={accountActionLoading}
+                        accessibilityRole="button"
+                        accessibilityLabel="מחיקת חשבון"
+                    >
+                        <Ionicons name="trash-outline" size={24} color="#fff" style={styles.dangerActionIcon} />
+                        <View style={styles.dangerActionTexts}>
+                            <Text style={[styles.dangerActionTitle, styles.dangerActionTitleOnDark]}>מחק חשבון</Text>
+                            <Text style={[styles.dangerActionSubtitle, styles.dangerActionSubtitleOnDark]}>
+                                מוחק מיד את המשתמש, כל האירועים, התיעודים והלוגים מהמסד.
+                            </Text>
+                        </View>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        style={[
+                            styles.dangerActionBase,
+                            styles.dangerActionSecondary,
+                            accountActionLoading && styles.dangerActionDisabled,
+                        ]}
+                        onPress={confirmResetAccount}
+                        activeOpacity={0.85}
+                        disabled={accountActionLoading}
+                        accessibilityRole="button"
+                        accessibilityLabel="איפוס חשבון"
+                    >
+                        <Ionicons
+                            name="refresh-circle-outline"
+                            size={24}
+                            color={COLORS.danger}
+                            style={styles.dangerActionIcon}
+                        />
+                        <View style={styles.dangerActionTexts}>
+                            <Text style={styles.dangerActionTitle}>אפס חשבון</Text>
+                            <Text style={styles.dangerActionSubtitle}>
+                                מוחק את כל האירועים והתיעודים מהמסד אך משאיר את פרטי המשתמש שלך פעילים.
+                            </Text>
+                        </View>
+                    </TouchableOpacity>
+
+                    <Text style={styles.settingsWarning}>שימו לב: שתי הפעולות אינן הפיכות.</Text>
+
+                    {accountActionLoading && (
+                        <View style={styles.settingsLoadingRow}>
+                            <ActivityIndicator color={COLORS.danger} size="small" />
+                            <Text style={styles.settingsLoadingText}>מבצע את הפעולה…</Text>
+                        </View>
+                    )}
+                </View>
             </View>
-        </View>
-    );
+        );
+    };
 
     return (
         <Animated.View
@@ -1348,6 +1503,37 @@ const styles = StyleSheet.create({
     placeholderBox: { marginTop: 10, backgroundColor: '#fff', borderRadius: 12, padding: 14, borderWidth: 1, borderColor: COLORS.border },
     placeholderText: { color: COLORS.subText, textAlign: 'right' },
 
+    settingsSection: { marginTop: 10 },
+    settingsIntro: { color: COLORS.subText, textAlign: 'right', lineHeight: 20, marginBottom: 18 },
+    dangerActionBase: {
+        borderRadius: 16,
+        borderWidth: 1,
+        paddingVertical: 14,
+        paddingHorizontal: 16,
+        flexDirection: 'row-reverse',
+        alignItems: 'center',
+        gap: 12,
+        marginBottom: 14,
+    },
+    dangerActionPrimary: {
+        backgroundColor: COLORS.danger,
+        borderColor: '#D84354',
+    },
+    dangerActionSecondary: {
+        backgroundColor: '#FFE7EA',
+        borderColor: '#F5B4BE',
+    },
+    dangerActionDisabled: { opacity: 0.6 },
+    dangerActionIcon: { marginLeft: 4 },
+    dangerActionTexts: { flex: 1 },
+    dangerActionTitle: { fontSize: 16, fontWeight: '800', color: COLORS.danger, textAlign: 'right' },
+    dangerActionTitleOnDark: { color: '#fff' },
+    dangerActionSubtitle: { fontSize: 13, lineHeight: 18, color: COLORS.danger, textAlign: 'right' },
+    dangerActionSubtitleOnDark: { color: '#FFE6EA' },
+    settingsWarning: { marginTop: -4, color: COLORS.subText, fontSize: 12, textAlign: 'right' },
+    settingsLoadingRow: { marginTop: 12, flexDirection: 'row-reverse', alignItems: 'center', gap: 8 },
+    settingsLoadingText: { color: COLORS.subText, fontSize: 13 },
+    
     // ---- Account fields ----
     label: { color: COLORS.text, fontWeight: '700', marginBottom: 8, textAlign: 'right' },
     inputWrap: {

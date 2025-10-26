@@ -1,5 +1,7 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/user.model');
+const Event = require('../models/event.model');
+const Log = require('../models/log.model');
 const JWT_SECRET = process.env.JWT_SECRET || 'supersecret';
 
 
@@ -89,7 +91,53 @@ const login = async (req, res) => {
   }
 };
 
+const ensureUserId = (req, res) => {
+  const userId = req.user?._id;
+  if (!userId) {
+    res.status(401).json({ message: 'משתמש לא מזוהה' });
+    return null;
+  }
+  return userId;
+};
+
+const deleteAccount = async (req, res) => {
+  try {
+    const userId = ensureUserId(req, res);
+    if (!userId) return;
+
+    await Promise.all([
+      Log.deleteMany({ userId }),
+      Event.deleteMany({ userId }),
+    ]);
+
+    const deletedUser = await User.findByIdAndDelete(userId);
+    if (!deletedUser) {
+      return res.status(404).json({ message: 'המשתמש לא נמצא' });
+    }
+
+    return res.json({ message: 'החשבון והנתונים נמחקו בהצלחה' });
+  } catch (err) {
+    console.error('Delete account error:', err);
+    return res.status(500).json({ message: 'שגיאה בעת מחיקת החשבון' });
+  }
+};
+
+const resetAccount = async (req, res) => {
+  try {
+    const userId = ensureUserId(req, res);
+    if (!userId) return;
+
+    await Promise.all([
+      Log.deleteMany({ userId }),
+      Event.deleteMany({ userId }),
+    ]);
+
+    return res.json({ message: 'החשבון אופס וכל האירועים והתיעודים נמחקו' });
+  } catch (err) {
+    console.error('Reset account error:', err);
+    return res.status(500).json({ message: 'שגיאה בעת איפוס החשבון' });
+  }
+};
 
 
-
-module.exports = { signup, login };
+module.exports = { signup, login, deleteAccount, resetAccount };
