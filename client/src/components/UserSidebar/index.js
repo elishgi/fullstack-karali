@@ -2,12 +2,14 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
     View, Text, StyleSheet, TouchableOpacity, Animated, Dimensions,
-    Image, Alert, Modal, TouchableWithoutFeedback, SafeAreaView, Platform,
+    Image, Alert, Modal, TouchableWithoutFeedback, Platform,
     TextInput, KeyboardAvoidingView, ScrollView
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons, Feather } from '@expo/vector-icons';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
 
 // ----- Notifications state -----
 const NOTIF_KEY = 'notifications';
