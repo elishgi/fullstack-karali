@@ -1,23 +1,76 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
 
-//סכמת המשתמש (שם, אימייל , סיסמא)
+const FRIEND_CODE_LENGTH = 6;
+
 const userSchema = new mongoose.Schema({
-  name: { type: String, required: true },
-  email: { type: String, required: true, unique: true },
-  password: { type: String, required: true },
+  username: {
+    type: String,
+    required: true,
+    unique: true,
+    trim: true,
+    minlength: 3,
+  },
+  friendCode: {
+    type: String,
+    required: true,
+    unique: true,
+    uppercase: true,
+    minlength: 6,
+    maxlength: 8,
+  },
+  email: {
+    type: String,
+    required: true,
+    unique: true,
+    lowercase: true,
+    trim: true,
+  },
+  passwordHash: {
+    type: String,
+    required: true,
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now,
+  },
+}, {
+  versionKey: false,
 });
 
-//יצירת הצפנה לסיסמא
-userSchema.pre('save', async function (next) {
-  if (!this.isModified('password')) return next();
-  this.password = await bcrypt.hash(this.password, 10);
+userSchema.methods.comparePassword = function comparePassword(candidatePassword) {
+  return bcrypt.compare(candidatePassword, this.passwordHash);
+};
+
+async function generateFriendCode(model) {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  while (true) {
+    let code = '';
+    for (let i = 0; i < FRIEND_CODE_LENGTH; i += 1) {
+      const index = Math.floor(Math.random() * alphabet.length);
+      code += alphabet[index];
+    }
+    // eslint-disable-next-line no-await-in-loop
+    const exists = await model.exists({ friendCode: code });
+    if (!exists) {
+      return code;
+    }
+  }
+}
+
+userSchema.pre('validate', async function preValidate(next) {
+  if (!this.friendCode) {
+    this.friendCode = await generateFriendCode(this.constructor);
+  }
   next();
 });
 
-//השוואה בין ההצפנה לססימא הקיימת
-userSchema.methods.comparePassword = function (candidatePassword) {
-  return bcrypt.compare(candidatePassword, this.password);
-};
+userSchema.pre('save', async function preSave(next) {
+  if (this.isModified('passwordHash')) {
+    const saltRounds = 10;
+    this.passwordHash = await bcrypt.hash(this.passwordHash, saltRounds);
+  }
+  next();
+});
 
 module.exports = mongoose.model('User', userSchema);

@@ -1,47 +1,49 @@
 const mongoose = require('mongoose');
 
-//סכמת התיעוד של האירוע
 const logSchema = new mongoose.Schema({
   userId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true
+    required: true,
   },
   eventId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Event',
-    required: true
+    required: true,
   },
   eventName: {
     type: String,
-    default: ''
+    default: '',
   },
   timestamp: {
     type: Date,
-    default: Date.now
+    default: Date.now,
   },
   timeOfDay: {
     type: String,
     enum: ['בוקר', 'צהריים', 'ערב', 'לילה'],
-    required: true
+    required: true,
   },
   dayOfWeek: {
     type: String,
     enum: ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'],
-    required: true
+    required: true,
   },
   comment: {
     type: String,
-    default: ''
+    default: '',
   },
   imageUri: {
     type: String,
-    default: ''
+    default: '',
   },
   location: {
     lat: Number,
-    lng: Number
-  }
+    lng: Number,
+  },
+}, {
+  timestamps: true,
+  versionKey: false,
 });
 
 module.exports = mongoose.model('Log', logSchema);

@@ -50,7 +50,7 @@ export default function LoginScreen({ navigation }) {
         <Text style={styles.title}>התחברות</Text>
 
         <TextInput
-          placeholder="אימייל או שם משתמש"
+          placeholder="אימייל, שם משתמש או קוד חבר"
           style={styles.input}
           value={identifier}
           onChangeText={setIdentifier}

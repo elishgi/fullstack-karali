@@ -26,6 +26,7 @@ import {
   deleteLog as deleteLogApi,
   deleteEvent,
   deleteEventAndLogs,
+  getNotifications,
 } from '../services/api';
 import WheelColorPicker from 'react-native-wheel-color-picker';
 import EventButton from '../components/EventButton';
@@ -54,8 +55,7 @@ export default function HomeScreen() {
   const [hasUnreadNotif, setHasUnreadNotif] = useState(false);
 
   // פילטר/מיון
-  const [showPersonal, setShowPersonal] = useState(true);
-  const [showShared, setShowShared] = useState(true);
+  const [activeScope, setActiveScope] = useState('all');
   const [sortModalVisible, setSortModalVisible] = useState(false);
   const [sortMode, setSortMode] = useState('none'); // 'none' | 'lastPress' | 'popularity' | 'createdAt'
 
@@ -79,8 +79,7 @@ export default function HomeScreen() {
 
       try {
         const parsed = JSON.parse(userData);
-        // אפשר שיגיע מה-Login (אובייקט מלא) או מה-SignUp (שם בלבד)
-        const name = parsed?.name || 'ללא שם';
+        const name = parsed?.username || parsed?.name || 'ללא שם';
         setUserName(name);
         setUserObj(parsed);
       } catch (e) {
@@ -90,8 +89,11 @@ export default function HomeScreen() {
     };
 
     loadUser();
-    fetchEvents();
   }, []);
+
+  useEffect(() => {
+    fetchEvents();
+  }, [activeScope]);
 
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
@@ -99,7 +101,7 @@ export default function HomeScreen() {
       refreshUnread();
     });
     return unsubscribe;
-  }, [navigation]);
+  }, [navigation, activeScope]);
 
   useEffect(() => {
     if (!sidebarVisible) {
@@ -109,32 +111,13 @@ export default function HomeScreen() {
   }, [sidebarVisible]);
 
   // HomeScreen.js
-const NOTIF_KEY = 'notifications';
-const NOTIF_UNREAD_KEY = 'notifications_unread_count';
-
-const ensureDemoNotification = async () => {
-  const raw = await AsyncStorage.getItem(NOTIF_KEY);
-  if (raw) return; // כבר קיים – לא נדרוס
-
-  const demo = [{
-    id: 'demo-1',
-    title: 'חדש! שיתוף אירועים',
-    body: 'מהיום אפשר לשתף את האירועים שלכם עם חברים! לכו לנסות',
-    read: false, // ← חשוב! חייב להיות false
-    createdAt: new Date().toISOString(),
-    starred: false,
-  }];
-
-  await AsyncStorage.setItem(NOTIF_KEY, JSON.stringify(demo));
-  await AsyncStorage.setItem(NOTIF_UNREAD_KEY, '1'); 
-};
-
 const refreshUnread = async () => {
   try {
-    await ensureDemoNotification();
-    const cnt = await AsyncStorage.getItem(NOTIF_UNREAD_KEY);
-    setHasUnreadNotif((cnt && Number(cnt) > 0) ? true : false);
-  } catch {
+    const notifications = await getNotifications();
+    const hasUnread = notifications.some((n) => !n.isRead);
+    setHasUnreadNotif(hasUnread);
+  } catch (error) {
+    console.error('שגיאה בשליפת התראות:', error);
     setHasUnreadNotif(false);
   }
 };
@@ -155,8 +138,13 @@ const refreshUnread = async () => {
 
 
   const fetchEvents = async () => {
-    const data = await getEvents();
-    setEvents(data);
+    try {
+      const data = await getEvents(activeScope);
+      setEvents(data);
+    } catch (error) {
+      console.error('שגיאה בשליפת אירועים:', error);
+      setEvents([]);
+    }
   };
 
   const handleLogout = async () => {
@@ -210,16 +198,6 @@ const refreshUnread = async () => {
   const getCurrentDayOfWeek = () => {
     const days = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
     return days[new Date().getDay()];
-  };
-
-  // חלוקה: אישי/משותף
-  const filterEvents = (items) => {
-    return items.filter(ev => {
-      if (showPersonal && showShared) return true;
-      if (showPersonal && !ev.shared) return true;
-      if (showShared && ev.shared) return true;
-      return false;
-    });
   };
 
   // חילוץ createdAt: אם אין בשדה, מנסים מ-ObjectId של Mongo (אופציונלי)
@@ -396,32 +374,37 @@ const refreshUnread = async () => {
           {hasEvents && (
             <View style={styles.filterBar}>
               <TouchableOpacity
-                style={[styles.filterPill, showPersonal ? styles.filterPillActive : null]}
-                onPress={() => {
-                  setShowPersonal(v => {
-                    // אם כרגע שניהם דלוקים – מותר לכבות אישי
-                    if (v && !showShared) return true; // אל תכבה אם משותף כבוי – חייב אחד דולק
-                    return !v;
-                  });
-                }}
+                style={[styles.filterPill, activeScope === 'all' && styles.filterPillActive]}
+                onPress={() => setActiveScope('all')}
                 activeOpacity={0.85}
               >
-                <Text style={[styles.filterPillText, showPersonal ? styles.filterPillTextActive : null]}>
-                  👤 אירועים אישיים
+                <Text
+                  style={[styles.filterPillText, activeScope === 'all' && styles.filterPillTextActive]}
+                >
+                  📋 כל האירועים
                 </Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.filterPill, showShared ? styles.filterPillActive : null]}
-                onPress={() => {
-                  setShowShared(v => {
-                    if (v && !showPersonal) return true; // אל תכבה אם אישי כבוי – חייב אחד דולק
-                    return !v;
-                  });
-                }}
+                style={[styles.filterPill, activeScope === 'personal' && styles.filterPillActive]}
+                onPress={() => setActiveScope('personal')}
                 activeOpacity={0.85}
               >
-                <Text style={[styles.filterPillText, showShared ? styles.filterPillTextActive : null]}>
+                <Text
+                  style={[styles.filterPillText, activeScope === 'personal' && styles.filterPillTextActive]}
+                >
+                  👤 האירועים שלי
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.filterPill, activeScope === 'shared' && styles.filterPillActive]}
+                onPress={() => setActiveScope('shared')}
+                activeOpacity={0.85}
+              >
+                <Text
+                  style={[styles.filterPillText, activeScope === 'shared' && styles.filterPillTextActive]}
+                >
                   🤝 אירועים משותפים
                 </Text>
               </TouchableOpacity>
@@ -430,7 +413,7 @@ const refreshUnread = async () => {
                 style={styles.filterIconBtn}
                 onPress={() => setSortModalVisible(true)}
                 activeOpacity={0.85}
-                accessibilityLabel="סינון ומיון לוגים"
+                accessibilityLabel="סינון ומיון אירועים"
               >
                 <Ionicons name="filter-outline" size={22} color="#333" />
               </TouchableOpacity>
@@ -439,7 +422,7 @@ const refreshUnread = async () => {
 
           {/* רשימת אירועים */}
           <Animated.FlatList
-            data={sortEvents(filterEvents(events))}
+            data={sortEvents(events)}
             numColumns={2}
             columnWrapperStyle={{ justifyContent: 'space-between' }}
             keyExtractor={(item) => item._id}

@@ -14,7 +14,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../services/api';
 
 export default function SignUpScreen({ navigation }) {
-  const [name, setName] = useState('');
+  const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
@@ -28,7 +28,7 @@ export default function SignUpScreen({ navigation }) {
   };
 
   const handleSignUp = async () => {
-    if (!name.trim() || !email.trim() || !password) {
+    if (!username.trim() || !email.trim() || !password) {
       Alert.alert('שגיאה', 'אנא מלא את כל השדות');
       return;
     }
@@ -44,18 +44,19 @@ export default function SignUpScreen({ navigation }) {
     }
 
     try {
-      const res = await api.post('/api/users/signup', { name, email, password });
+      const res = await api.post('/api/users/signup', { username, email, password });
 
       try {
-        await AsyncStorage.setItem('user', JSON.stringify({ name }));
+        await AsyncStorage.setItem('user', JSON.stringify(res.data.user));
+        await AsyncStorage.setItem('token', res.data.token);
       } catch (storageError) {
         console.warn('⚠️ שגיאה ב-AsyncStorage:', storageError);
       }
       Alert.alert(
         'הרשמה הצליחה',
-        'נרשמת בהצלחה! תוכל כעת להתחבר למערכת.',
+        `נרשמת בהצלחה! קוד החבר שלך הוא ${res.data.user.friendCode}.`,
         [
-          { text: 'אישור', onPress: () => navigation.replace('Login') },
+          { text: 'אישור', onPress: () => navigation.replace('Home') },
         ]
       );
 
@@ -72,12 +73,13 @@ export default function SignUpScreen({ navigation }) {
         <Text style={styles.title}>הרשמה</Text>
 
         <TextInput
-          placeholder="שם"
+          placeholder="שם משתמש"
           style={styles.input}
-          value={name}
-          onChangeText={setName}
+          value={username}
+          onChangeText={setUsername}
           textAlign="right"
           placeholderTextColor="#999"
+          autoCapitalize="none"
         />
         <TextInput
           placeholder="אימייל"

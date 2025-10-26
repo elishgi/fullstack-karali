@@ -1,20 +1,26 @@
 const jwt = require('jsonwebtoken');
+const User = require('../models/user.model');
+
 const JWT_SECRET = process.env.JWT_SECRET || 'supersecret';
 
-// בדיקת אבטחה – האם נשלח טוקן, והאם הוא תקף
-
-module.exports = function (req, res, next) {
+module.exports = async function auth(req, res, next) {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return res.status(401).json({ message: 'לא נשלח טוקן אימות' });
   }
 
   const token = authHeader.split(' ')[1];
+
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
-    req.user = decoded; 
-    next();
+    const user = await User.findById(decoded._id || decoded.id);
+    if (!user) {
+      return res.status(401).json({ message: 'משתמש לא נמצא' });
+    }
+    req.user = user;
+    req.userId = user._id;
+    return next();
   } catch (err) {
-    res.status(401).json({ message: 'טוקן לא תקף' });
+    return res.status(401).json({ message: 'טוקן לא תקף' });
   }
 };

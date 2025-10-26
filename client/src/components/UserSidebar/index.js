@@ -3,22 +3,23 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, Animated, Dimensions,
   Image, Alert, Modal, TouchableWithoutFeedback, SafeAreaView, Platform,
-  TextInput, KeyboardAvoidingView, ScrollView
+  TextInput, KeyboardAvoidingView, ScrollView, ActivityIndicator
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons, Feather } from '@expo/vector-icons';
-
-// ----- Notifications state -----
-const NOTIF_KEY = 'notifications';
-const NOTIF_UNREAD_KEY = 'notifications_unread_count';
+import {
+  getFriends,
+  getFriendRequests,
+  respondToFriendRequest,
+  sendFriendRequest,
+  searchUsers,
+  getNotifications,
+  markNotificationRead,
+} from '../../services/api';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const PANEL_WIDTH = SCREEN_WIDTH * 0.82;
-
-// ----- Friends state -----
-const FRIENDS_KEY = 'friends_list';
-const SHARED_EVENTS_COUNT_KEY = 'shared_events_count';
 
 const COLORS = {
   primary: '#3DD6D0',
@@ -54,77 +55,68 @@ function UserSidebar({ visible, onClose, user, onLogout, onUserUpdated, initialT
 
   // Friends
   const [friends, setFriends] = useState([]);
-  const [searchExisting, setSearchExisting] = useState('');
-  const [searchById, setSearchById] = useState('');
-  const [sharedEventsCount, setSharedEventsCount] = useState(0);
-
-  const persistFriends = async (list) => {
-    setFriends(list);
-    await AsyncStorage.setItem(FRIENDS_KEY, JSON.stringify(list));
-  };
-
-  const seedFriendsIfEmpty = async () => {
-    const raw = await AsyncStorage.getItem(FRIENDS_KEY);
-    if (raw) return JSON.parse(raw);
-    const demo = [
-      { id: 'u1', name: 'דני כהן', starred: false, since: new Date().toISOString(), status: 'accepted' },
-      { id: 'u2', name: 'נועה לוי', starred: false, since: new Date().toISOString(), status: 'accepted' },
-      { id: 'u3', name: 'יוסי מזרחי', starred: true, since: new Date().toISOString(), status: 'accepted' },
-    ];
-    await persistFriends(demo);
-    return demo;
-  };
+  const [incomingRequests, setIncomingRequests] = useState([]);
+  const [outgoingRequests, setOutgoingRequests] = useState([]);
+  const [friendTab, setFriendTab] = useState('friends');
+  const [friendsLoading, setFriendsLoading] = useState(false);
+  const [friendsError, setFriendsError] = useState(null);
+  const [requestsLoading, setRequestsLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchError, setSearchError] = useState(null);
+  const [sendingRequest, setSendingRequest] = useState(false);
 
   const loadFriends = useCallback(async () => {
     try {
-      const raw = await AsyncStorage.getItem(FRIENDS_KEY);
-      if (!raw) {
-        const demo = await seedFriendsIfEmpty();
-        setFriends(demo);
-      } else {
-        setFriends(JSON.parse(raw) || []);
-      }
-    } catch {
+      setFriendsLoading(true);
+      setFriendsError(null);
+      const data = await getFriends();
+      setFriends(data);
+    } catch (error) {
+      console.error('שגיאה בשליפת חברים:', error);
       setFriends([]);
+      setFriendsError('לא ניתן לטעון את רשימת החברים');
+    } finally {
+      setFriendsLoading(false);
     }
   }, []);
 
-  const refreshSharedCount = useCallback(async () => {
+  const loadFriendRequests = useCallback(async () => {
     try {
-      const raw = await AsyncStorage.getItem(SHARED_EVENTS_COUNT_KEY);
-      setSharedEventsCount(raw ? Number(raw) : 0);
-    } catch {
-      setSharedEventsCount(0);
+      setRequestsLoading(true);
+      const { incoming = [], outgoing = [] } = await getFriendRequests();
+      setIncomingRequests(incoming);
+      setOutgoingRequests(outgoing);
+    } catch (error) {
+      console.error('שגיאה בשליפת בקשות חברות:', error);
+      setIncomingRequests([]);
+      setOutgoingRequests([]);
+    } finally {
+      setRequestsLoading(false);
     }
   }, []);
 
-  const filteredFriends = friends.filter(f =>
-    f.name?.toLowerCase().includes(searchExisting.toLowerCase()) ||
-    f.id?.toLowerCase().includes(searchExisting.toLowerCase())
-  );
-
-  // חיפוש/הוספה לפי ID (יסודות – כרגע דמו)
-  const handleFindById = async () => {
-    const id = (searchById || '').trim();
-    if (!id) return;
-    const exists = friends.some(f => f.id === id);
-    if (exists) {
-      Alert.alert('קיים', 'החבר כבר נמצא ברשימה.');
+  const executeSearch = useCallback(async (query) => {
+    const trimmed = query.trim();
+    if (trimmed.length < 2) {
+      setSearchResults([]);
+      setSearchError(null);
       return;
     }
-    // דמו: מוסיפים חבר חדש במצב pending. בהמשך – קריאת API / בקשת צירוף.
-    const newFriend = {
-      id,
-      name: `משתמש ${id}`,
-      starred: false,
-      since: new Date().toISOString(),
-      status: 'pending', // נפתח בהמשך לאישור הדדי
-    };
-    const next = [newFriend, ...friends];
-    await persistFriends(next);
-    setSearchById('');
-    Alert.alert('נוסף (דמו)', `נוסף משתמש עם מזהה ${id} במצב ממתין.`);
-  };
+    try {
+      setSearchLoading(true);
+      setSearchError(null);
+      const results = await searchUsers(trimmed);
+      setSearchResults(results);
+    } catch (error) {
+      console.error('שגיאה בחיפוש חברים:', error);
+      setSearchError('אירעה שגיאה במהלך החיפוש');
+      setSearchResults([]);
+    } finally {
+      setSearchLoading(false);
+    }
+  }, []);
 
 
   // ----- Account form state -----
@@ -150,55 +142,24 @@ function UserSidebar({ visible, onClose, user, onLogout, onUserUpdated, initialT
 
 
   // להציג את השם המעודכן מיד
-  const [sidebarName, setSidebarName] = useState(user?.name || 'משתמש');
+  const [sidebarName, setSidebarName] = useState(user?.username || user?.name || 'משתמש');
 
 
   // Notifications
   const [notifications, setNotifications] = useState([]);
-  const unreadCount = notifications.filter(n => !n.read).length;
-
-  const NOTIF_KEY = 'notifications';
-  const NOTIF_UNREAD_KEY = 'notifications_unread_count';
-
-  const persistNotifications = async (list) => {
-    setNotifications(list);
-    await AsyncStorage.setItem(NOTIF_KEY, JSON.stringify(list));
-    const unread = list.filter(n => !n.read).length;
-    await AsyncStorage.setItem(NOTIF_UNREAD_KEY, String(unread)); // ← עדכן מונה תמיד
-  };
-
-  const seedIfEmpty = async () => {
-    const raw = await AsyncStorage.getItem(NOTIF_KEY);
-    if (raw) return JSON.parse(raw);
-
-    const demo = [{
-      id: 'demo-1',
-      title: 'חדש! שיתוף אירועים',
-      body: 'מהיום אפשר לשתף את האירועים שלכם עם חברים! לכו לנסות',
-      read: false, // ← חשוב!
-      createdAt: new Date().toISOString(),
-      starred: false,
-    }];
-
-    await persistNotifications(demo);
-    return demo;
-  };
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
+  const unreadCount = notifications.filter((n) => !n.isRead).length;
 
   const loadNotifications = useCallback(async () => {
     try {
-      const raw = await AsyncStorage.getItem(NOTIF_KEY);
-      if (!raw) {
-        const demo = await seedIfEmpty();
-        setNotifications(demo);
-      } else {
-        const list = JSON.parse(raw) || [];
-        setNotifications(list);
-        // עדכן מונה גם כאן, ליתר בטחון
-        const unread = list.filter(n => !n.read).length;
-        await AsyncStorage.setItem(NOTIF_UNREAD_KEY, String(unread));
-      }
-    } catch {
+      setNotificationsLoading(true);
+      const list = await getNotifications();
+      setNotifications(list);
+    } catch (error) {
+      console.error('שגיאה בשליפת התראות:', error);
       setNotifications([]);
+    } finally {
+      setNotificationsLoading(false);
     }
   }, []);
 
@@ -240,14 +201,14 @@ function UserSidebar({ visible, onClose, user, onLogout, onUserUpdated, initialT
       const stored = raw ? JSON.parse(raw) : null;
       const u = stored || user || {};
       setInitialUser(u);
-      setName(u?.name || '');
+      setName(u?.username || u?.name || '');
       setEmail(u?.email || '');
       setPhone(u?.phone || '');
       setBio(u?.bio || '');
-      setSidebarName(u?.name || 'משתמש');
+      setSidebarName(u?.username || u?.name || 'משתמש');
 
       // סנכרון ערכי ברירת מחדל ל-Uncontrolled
-      draftNameRef.current = u?.name || '';
+      draftNameRef.current = u?.username || u?.name || '';
       draftEmailRef.current = u?.email || '';
       draftPhoneRef.current = u?.phone || '';
       draftPasswordRef.current = '';       // לא נטען סיסמה קיימת
@@ -274,12 +235,12 @@ function UserSidebar({ visible, onClose, user, onLogout, onUserUpdated, initialT
     }).start();
     if (activeIndex === 2 && visible) {
       loadFriends();
-      refreshSharedCount();
+      loadFriendRequests();
     }
     if (activeIndex === 3 && visible) {
       loadNotifications();
     }
-  }, [activeIndex, visible, loadFriends, refreshSharedCount, loadNotifications]);
+  }, [activeIndex, visible, loadFriends, loadFriendRequests, loadNotifications]);
 
   // פתיחה על טאב מבוקש (ברירת מחדל 0)
   useEffect(() => {
@@ -288,6 +249,12 @@ function UserSidebar({ visible, onClose, user, onLogout, onUserUpdated, initialT
     const idx = typeof initialTab === 'string' ? (map[initialTab] ?? 0) : (Number(initialTab) || 0);
     setActiveIndex(idx);
   }, [visible, initialTab]);
+
+  useEffect(() => {
+    if (visible) {
+      loadNotifications();
+    }
+  }, [visible, loadNotifications]);
 
   const initials = (nameStr) => {
     if (!nameStr) return '🙂';
@@ -399,6 +366,12 @@ function UserSidebar({ visible, onClose, user, onLogout, onUserUpdated, initialT
         </View>
 
         <Text style={styles.userName}>{sidebarName}</Text>
+        {!!user?.friendCode && (
+          <View style={styles.friendCodeBox}>
+            <Text style={styles.friendCodeLabel}>קוד חבר</Text>
+            <Text style={styles.friendCodeValue}>{user.friendCode}</Text>
+          </View>
+        )}
       </View>
 
       <View style={{ marginTop: 12 }}>
@@ -427,7 +400,7 @@ function UserSidebar({ visible, onClose, user, onLogout, onUserUpdated, initialT
   const somethingChanged =
     !!initialUser &&
     (
-      draftNameRef.current.trim() !== (initialUser?.name || '').trim() ||
+      draftNameRef.current.trim() !== ((initialUser?.username || initialUser?.name || '')).trim() ||
       draftEmailRef.current.trim() !== (initialUser?.email || '').trim() ||
       draftPhoneRef.current.trim() !== (initialUser?.phone || '').trim() ||
       draftBioRef.current.trim() !== (initialUser?.bio || '').trim() ||
@@ -446,7 +419,7 @@ function UserSidebar({ visible, onClose, user, onLogout, onUserUpdated, initialT
         text: 'כן, בטל',
         style: 'destructive',
         onPress: () => {
-          draftNameRef.current = initialUser?.name || '';
+          draftNameRef.current = initialUser?.username || initialUser?.name || '';
           draftEmailRef.current = initialUser?.email || '';
           draftPhoneRef.current = initialUser?.phone || '';
           draftBioRef.current = initialUser?.bio || '';
@@ -610,98 +583,246 @@ function UserSidebar({ visible, onClose, user, onLogout, onUserUpdated, initialT
 
   // ----- OTHER PANELS -----
   const FriendsPanel = () => {
+    const hasIncoming = incomingRequests.length > 0;
+    const hasOutgoing = outgoingRequests.length > 0;
+
+    const handleAccept = async (requestId) => {
+      try {
+        await respondToFriendRequest(requestId, 'accepted');
+        await Promise.all([loadFriends(), loadFriendRequests(), loadNotifications()]);
+        Alert.alert('בקשה התקבלה', 'החבר נוסף לרשימת החברים שלך.');
+      } catch (error) {
+        console.error('שגיאה באישור בקשה:', error);
+        Alert.alert('שגיאה', 'לא ניתן לאשר את הבקשה כעת.');
+      }
+    };
+
+    const handleReject = async (requestId) => {
+      try {
+        await respondToFriendRequest(requestId, 'rejected');
+        await loadFriendRequests();
+      } catch (error) {
+        console.error('שגיאה בדחיית בקשה:', error);
+        Alert.alert('שגיאה', 'לא ניתן לדחות את הבקשה כעת.');
+      }
+    };
+
+    const handleSendRequest = async (targetId) => {
+      try {
+        setSendingRequest(true);
+        await sendFriendRequest({ toUserId: targetId });
+        Alert.alert('בקשה נשלחה', 'בקשת החברות נשלחה בהצלחה.');
+        setSearchQuery('');
+        setSearchResults([]);
+        await loadFriendRequests();
+      } catch (error) {
+        const message = error?.response?.data?.message || 'לא ניתן לשלוח בקשה כרגע.';
+        Alert.alert('שגיאה', message);
+      } finally {
+        setSendingRequest(false);
+      }
+    };
+
+    const renderFriendCard = (friend) => (
+      <View key={friend._id} style={styles.friendItem}>
+        <View style={styles.friendHeader}>
+          <Text style={styles.friendName}>{friend.username}</Text>
+          <Text style={styles.friendCodeText}>#{friend.friendCode}</Text>
+        </View>
+        <Text style={styles.friendSince}>מאז: {friend.since ? new Date(friend.since).toLocaleDateString() : 'לא ידוע'}</Text>
+      </View>
+    );
+
+    const renderIncoming = () => {
+      if (requestsLoading) {
+        return (
+          <View style={styles.placeholderBox}>
+            <ActivityIndicator color={COLORS.primary} />
+          </View>
+        );
+      }
+      if (!hasIncoming) {
+        return (
+          <View style={styles.placeholderBox}>
+            <Text style={styles.placeholderText}>אין בקשות נכנסות כרגע.</Text>
+          </View>
+        );
+      }
+      return incomingRequests.map((request) => (
+        <View key={request._id} style={styles.requestCard}>
+          <View style={styles.requestInfo}>
+            <Text style={styles.friendName}>{request.fromUser.username}</Text>
+            <Text style={styles.friendCodeText}>#{request.fromUser.friendCode}</Text>
+            <Text style={styles.requestTime}>
+              נשלחה {new Date(request.createdAt).toLocaleDateString()}
+            </Text>
+          </View>
+          <View style={styles.requestActions}>
+            <TouchableOpacity
+              style={[styles.requestBtn, styles.acceptBtn]}
+              onPress={() => handleAccept(request._id)}
+            >
+              <Text style={styles.requestBtnText}>אשר</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.requestBtn, styles.rejectBtn]}
+              onPress={() => handleReject(request._id)}
+            >
+              <Text style={styles.requestBtnText}>דחה</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      ));
+    };
+
+    const renderOutgoing = () => {
+      if (requestsLoading) {
+        return (
+          <View style={styles.placeholderBox}>
+            <ActivityIndicator color={COLORS.primary} />
+          </View>
+        );
+      }
+      if (!hasOutgoing) {
+        return (
+          <View style={styles.placeholderBox}>
+            <Text style={styles.placeholderText}>אין בקשות ממתינות שנשלחו.</Text>
+          </View>
+        );
+      }
+      return outgoingRequests.map((request) => (
+        <View key={request._id} style={styles.requestCard}>
+          <View style={styles.requestInfo}>
+            <Text style={styles.friendName}>{request.toUser.username}</Text>
+            <Text style={styles.friendCodeText}>#{request.toUser.friendCode}</Text>
+            <Text style={styles.requestTime}>
+              ממתין מאז {new Date(request.createdAt).toLocaleDateString()}
+            </Text>
+          </View>
+        </View>
+      ));
+    };
+
+    const renderSearch = () => (
+      <View style={styles.searchSection}>
+        <View style={styles.searchRow}>
+          <Ionicons name="search-outline" size={18} color="#888" style={{ marginHorizontal: 6 }} />
+          <TextInput
+            value={searchQuery}
+            onChangeText={(text) => {
+              setSearchQuery(text);
+              executeSearch(text);
+            }}
+            placeholder="חפש לפי שם משתמש או קוד חבר"
+            style={styles.searchInput}
+            placeholderTextColor="#999"
+          />
+        </View>
+        {searchError && <Text style={styles.errorText}>{searchError}</Text>}
+        {searchLoading ? (
+          <View style={styles.placeholderBox}>
+            <ActivityIndicator color={COLORS.primary} />
+          </View>
+        ) : (() => {
+          const filtered = searchResults.filter((result) => {
+            if (!result?._id) return false;
+            if (user?._id && result._id === user._id) return false;
+            if (existingFriendIds.has(result._id)) return false;
+            if (outgoingIds.has(result._id)) return false;
+            if (incomingIds.has(result._id)) return false;
+            return true;
+          });
+          if (filtered.length === 0) {
+            return (
+              <View style={styles.placeholderBox}>
+                <Text style={styles.placeholderText}>לא נמצאו משתמשים מתאימים.</Text>
+              </View>
+            );
+          }
+          return filtered.map((result) => (
+            <View key={result._id} style={styles.requestCard}>
+              <View style={styles.requestInfo}>
+                <Text style={styles.friendName}>{result.username}</Text>
+                <Text style={styles.friendCodeText}>#{result.friendCode}</Text>
+              </View>
+              <TouchableOpacity
+                style={[styles.requestBtn, styles.acceptBtn]}
+                onPress={() => handleSendRequest(result._id)}
+                disabled={sendingRequest}
+              >
+                <Text style={styles.requestBtnText}>{sendingRequest ? 'שולח...' : 'שלח בקשה'}</Text>
+              </TouchableOpacity>
+            </View>
+          ));
+        })()}
+      </View>
+    );
     return (
       <View style={styles.panelInner}>
-        {/* כותרת */}
         <View style={styles.subHeader}>
           <TouchableOpacity style={styles.backBtn} onPress={() => setActiveIndex(0)}>
             <Ionicons name="chevron-back" size={22} color={COLORS.text} />
             <Text style={styles.backText}>חזרה</Text>
           </TouchableOpacity>
           <Text style={styles.subTitle}>חברים</Text>
-          <View style={{ width: 64 }} />
+          <TouchableOpacity
+            style={styles.refreshBtn}
+            onPress={() => {
+              loadFriends();
+              loadFriendRequests();
+            }}
+          >
+            <Ionicons name="refresh" size={18} color={COLORS.text} />
+          </TouchableOpacity>
         </View>
 
-        {/* סטטיסטיקה */}
-        <View style={styles.statsRow}>
-          <View style={styles.statCard}>
-            <Text style={styles.statNum}>{friends.length}</Text>
-            <Text style={styles.statLabel}>חברים</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statNum}>{sharedEventsCount}</Text>
-            <Text style={styles.statLabel}>אירועים משותפים</Text>
-          </View>
-        </View>
-
-        {/* חיפוש חבר קיים */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>חיפוש חברים קיימים</Text>
-          <View style={styles.searchRow}>
-            <Ionicons name="search-outline" size={18} color="#888" style={{ marginHorizontal: 6 }} />
-            <TextInput
-              value={searchExisting}
-              onChangeText={setSearchExisting}
-              placeholder="חפש לפי שם או מזהה"
-              style={styles.searchInput}
-              placeholderTextColor="#999"
-            />
-          </View>
-        </View>
-
-        {/* רשימת חברים */}
-        {filteredFriends.length === 0 ? (
-          <View style={styles.placeholderBox}>
-            <Text style={styles.placeholderText}>לא נמצאו חברים תואמים.</Text>
-          </View>
-        ) : (
-          <View style={{ marginBottom: 10 }}>
-            {filteredFriends.map(f => (
-              <View key={f.id} style={styles.friendItem}>
-                <View style={styles.friendHeader}>
-                  <Text style={styles.friendName}>{f.name}</Text>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                    {/* כוכב (מועדפים) פר-חבר */}
-                    <Ionicons
-                      name={f.starred ? 'star' : 'star-outline'}
-                      size={18}
-                      color={f.starred ? '#DAA520' : '#bbb'}
-                      onPress={async () => {
-                        const next = friends.map(x => x.id === f.id ? { ...x, starred: !x.starred } : x);
-                        await persistFriends(next);
-                      }}
-                    />
-                    {/* סטטוס */}
-                    <Text style={[styles.friendStatus, f.status === 'accepted' ? styles.statusOk : styles.statusPending]}>
-                      {f.status === 'accepted' ? 'מחובר' : 'ממתין'}
-                    </Text>
-                  </View>
+        <View style={styles.friendTabs}>
+          {[
+            { key: 'friends', label: 'החברים שלי', badge: friends.length },
+            { key: 'incoming', label: 'בקשות נכנסות', badge: incomingRequests.length },
+            { key: 'outgoing', label: 'בקשות יוצאות', badge: outgoingRequests.length },
+            { key: 'search', label: 'חיפוש והוספה' },
+          ].map((tab) => (
+            <TouchableOpacity
+              key={tab.key}
+              style={[styles.friendTab, friendTab === tab.key && styles.friendTabActive]}
+              onPress={() => setFriendTab(tab.key)}
+              activeOpacity={0.85}
+            >
+              <Text style={[styles.friendTabText, friendTab === tab.key && styles.friendTabTextActive]}>
+                {tab.label}
+              </Text>
+              {tab.badge > 0 && (
+                <View style={styles.friendTabBadge}>
+                  <Text style={styles.friendTabBadgeText}>{tab.badge}</Text>
                 </View>
-                <Text style={styles.friendSince}>מאז: {new Date(f.since).toLocaleDateString()}</Text>
-              </View>
-            ))}
-          </View>
-        )}
-
-        {/* הוספה לפי ID (יסודות) */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>מצא/הוסף חבר לפי מזהה (ID)</Text>
-          <View style={styles.findIdRow}>
-            <TextInput
-              value={searchById}
-              onChangeText={setSearchById}
-              placeholder="הקלד מזהה משתמש (ID)"
-              style={styles.findIdInput}
-              placeholderTextColor="#999"
-              autoCapitalize="none"
-            />
-            <TouchableOpacity style={styles.findIdBtn} onPress={handleFindById} activeOpacity={0.85}>
-              <Ionicons name="person-add-outline" size={18} color="#111" />
-              <Text style={styles.findIdBtnText}>חפש</Text>
+              )}
             </TouchableOpacity>
-          </View>
-          <Text style={styles.noteText}>בשלב הבא נוסיף בקשת צירוף ואימות הדדי.</Text>
+          ))}
         </View>
+
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 40 }}>
+          {friendTab === 'friends' && (
+            friendsLoading ? (
+              <View style={styles.placeholderBox}>
+                <ActivityIndicator color={COLORS.primary} />
+              </View>
+            ) : friendsError ? (
+              <View style={styles.placeholderBox}>
+                <Text style={styles.placeholderText}>{friendsError}</Text>
+              </View>
+            ) : friends.length === 0 ? (
+              <View style={styles.placeholderBox}>
+                <Text style={styles.placeholderText}>עדיין אין לך חברים. נסה לשלוח בקשה!</Text>
+              </View>
+            ) : (
+              friends.map(renderFriendCard)
+            )
+          )}
+          {friendTab === 'incoming' && renderIncoming()}
+          {friendTab === 'outgoing' && renderOutgoing()}
+          {friendTab === 'search' && renderSearch()}
+        </ScrollView>
       </View>
     );
   };
@@ -709,121 +830,116 @@ function UserSidebar({ visible, onClose, user, onLogout, onUserUpdated, initialT
 
   const NotificationsPanel = () => {
     const markAllRead = async () => {
-      if (unreadCount === 0) return; // מגן
-      const next = notifications.map(n => ({ ...n, read: true }));
-      await persistNotifications(next);
+      if (unreadCount === 0) return;
+      try {
+        await Promise.all(
+          notifications.filter((n) => !n.isRead).map((n) => markNotificationRead(n._id || n.id))
+        );
+        await loadNotifications();
+      } catch (error) {
+        console.error('שגיאה בסימון התראות:', error);
+      }
     };
 
+    const translateType = (type) => {
+      switch (type) {
+        case 'FRIEND_REQUEST':
+          return 'בקשת חברות חדשה';
+        case 'FRIEND_ACCEPTED':
+          return 'בקשת החברות התקבלה';
+        case 'EVENT_LOG':
+          return 'עדכון אירוע משותף';
+        default:
+          return 'התראה';
+      }
+    };
 
+    const buildNotificationMessage = (notification) => {
+      if (notification.payload?.message) return notification.payload.message;
+      switch (notification.type) {
+        case 'FRIEND_REQUEST':
+          return `${notification.payload?.from?.username || 'משתמש'} שלח לך בקשת חברות.`;
+        case 'FRIEND_ACCEPTED':
+          return `${notification.payload?.by?.username || 'משתמש'} אישר את בקשת החברות שלך.`;
+        case 'EVENT_LOG':
+          return `${notification.payload?.by?.username || 'חבר'} הוסיף לוג חדש לאירוע "${notification.payload?.eventTitle || ''}".`;
+        default:
+          return '';
+      }
+    };
 
-    const onPressNotification = async (n) => {
+    const onPressNotification = async (notification) => {
       Alert.alert(
-        n.title,
-        n.body,
-        [{
-          text: 'סגור',
-          onPress: async () => {
-            const next = notifications.map(x => x.id === n.id ? { ...x, read: true } : x);
-            await persistNotifications(next);
-          }
-        }],
+        translateType(notification.type),
+        buildNotificationMessage(notification),
+        [
+          {
+            text: 'סגור',
+            onPress: async () => {
+              if (!notification.isRead) {
+                await markNotificationRead(notification._id || notification.id);
+                await loadNotifications();
+              }
+            },
+          },
+        ],
         { cancelable: true }
       );
     };
 
     return (
       <View style={styles.panelInner}>
-        {/* כותרת עליונה נקייה */}
         <View style={styles.subHeader}>
           <TouchableOpacity style={styles.backBtn} onPress={() => setActiveIndex(0)}>
             <Ionicons name="chevron-back" size={22} color={COLORS.text} />
             <Text style={styles.backText}>חזרה</Text>
           </TouchableOpacity>
           <Text style={styles.subTitle}>התראות</Text>
-          <View style={{ width: 64 }} />
-        </View>
-
-        {/* שורה מתחת לכותרת: סמן הכול כנקראו במסגרת */}
-        <View style={styles.afterTitleRow}>
-          <TouchableOpacity
-            style={[
-              styles.actionBorderBtn,
-              unreadCount === 0 ? styles.actionBorderBtnDanger : styles.actionBorderBtnNeutral
-            ]}
-            onPress={markAllRead}
-            disabled={unreadCount === 0} // ← לוודא שהוא באמת לא לחיץ כשהוא אדום
-          >
-            <Ionicons
-              name="checkmark-done-outline"
-              size={18}
-              color={unreadCount === 0 ? '#E53935' : '#111'}
-            />
-            <Text
-              style={[
-                styles.actionBorderBtnText,
-                { color: unreadCount === 0 ? '#E53935' : '#111' }
-              ]}
-            >
-              סמן הכול כנקראו
-            </Text>
+          <TouchableOpacity style={styles.refreshBtn} onPress={markAllRead}>
+            <Ionicons name="checkmark-done-outline" size={18} color={COLORS.text} />
           </TouchableOpacity>
         </View>
 
-        {/* רשימת התראות */}
-        {notifications.length === 0 ? (
+        {notificationsLoading ? (
+          <View style={styles.placeholderBox}>
+            <ActivityIndicator color={COLORS.primary} />
+          </View>
+        ) : notifications.length === 0 ? (
           <View style={styles.placeholderBox}>
             <Text style={styles.placeholderText}>אין התראות כעת.</Text>
           </View>
         ) : (
-          <View>
-            {notifications.map(n => {
-              const isUnread = !n.read;
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 40 }}>
+            {notifications.map((notification) => {
+              const isUnread = !notification.isRead;
               return (
                 <TouchableOpacity
-                  key={n.id}
+                  key={notification._id || notification.id}
                   style={[
                     styles.notifItem,
                     isUnread ? styles.notifItemUnread : styles.notifItemRead,
                   ]}
-                  activeOpacity={0.8}
-                  onPress={() => onPressNotification(n)}
+                  activeOpacity={0.85}
+                  onPress={() => onPressNotification(notification)}
                 >
                   <View style={styles.notifHeaderRow}>
                     <Text style={[styles.notifTitle, isUnread && styles.notifTitleUnread]}>
-                      {n.title}
+                      {translateType(notification.type)}
                     </Text>
-
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                      {/* כוכב פר־פריט */}
-                      <Ionicons
-                        name={n.starred ? 'star' : 'star-outline'}
-                        size={18}
-                        color={n.starred ? '#DAA520' : '#bbb'}
-                        onPress={async () => {
-                          const next = notifications.map(x => x.id === n.id ? { ...x, starred: !x.starred } : x);
-                          await persistNotifications(next);
-                        }}
-                      />
-                      {/* נקודה אדומה אם לא נקרא */}
-                      {isUnread && <View style={styles.unreadDot} />}
-                    </View>
+                    {isUnread && <View style={styles.unreadDot} />}
                   </View>
-
-                  {!!n.body && <Text style={styles.notifBody}>{n.body}</Text>}
-                  {!!n.createdAt && (
-                    <Text style={styles.notifTime}>{new Date(n.createdAt).toLocaleString()}</Text>
-                  )}
+                  <Text style={styles.notifBody}>{buildNotificationMessage(notification)}</Text>
+                  <Text style={styles.notifTime}>
+                    {new Date(notification.createdAt).toLocaleString()}
+                  </Text>
                 </TouchableOpacity>
               );
             })}
-          </View>
+          </ScrollView>
         )}
       </View>
     );
   };
-
-
-
   const SettingsPanel = () => (
     <View style={styles.panelInner} collapsable={false} renderToHardwareTextureAndroid>
       <SubHeader title="הגדרות" onBack={() => setActiveIndex(0)} />
@@ -1003,10 +1119,70 @@ const styles = StyleSheet.create({
   },
   friendHeader: { flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between' },
   friendName: { fontSize: 15, fontWeight: '700', color: COLORS.text },
+  friendCodeText: { fontSize: 12, color: COLORS.subText },
   friendStatus: { fontSize: 12, fontWeight: '700' },
   statusOk: { color: '#1e8e3e' },
   statusPending: { color: '#b26a00' },
   friendSince: { marginTop: 4, fontSize: 12, color: COLORS.subText, textAlign: 'right' },
+
+  friendTabs: {
+    flexDirection: 'row-reverse',
+    gap: 8,
+    marginBottom: 12,
+  },
+  friendTab: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.bgSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 6,
+  },
+  friendTabActive: {
+    backgroundColor: '#eef6ff',
+    borderColor: '#bcd9ff',
+  },
+  friendTabText: { fontSize: 13, fontWeight: '700', color: COLORS.subText },
+  friendTabTextActive: { color: '#0b69ff' },
+  friendTabBadge: {
+    minWidth: 20,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 999,
+    backgroundColor: COLORS.primary,
+  },
+  friendTabBadgeText: { color: '#fff', fontSize: 12, fontWeight: '700', textAlign: 'center' },
+
+  requestCard: {
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 10,
+    backgroundColor: '#fff',
+  },
+  requestInfo: {
+    marginBottom: 10,
+  },
+  requestTime: { fontSize: 12, color: COLORS.subText, marginTop: 4 },
+  requestActions: {
+    flexDirection: 'row-reverse',
+    gap: 8,
+  },
+  requestBtn: {
+    flex: 1,
+    paddingVertical: 8,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  acceptBtn: { backgroundColor: '#3DD6D0' },
+  rejectBtn: { backgroundColor: '#F35369' },
+  requestBtnText: { color: '#fff', fontWeight: '700' },
+  searchSection: { gap: 12 },
 
   findIdRow: { flexDirection: 'row-reverse', alignItems: 'center', gap: 8 },
   findIdInput: {
@@ -1098,6 +1274,20 @@ const styles = StyleSheet.create({
   },
 
   userName: { marginTop: 12, fontSize: 18, fontWeight: '800', color: COLORS.text },
+  friendCodeBox: {
+    marginTop: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: COLORS.bgSoft,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 8,
+  },
+  friendCodeLabel: { fontSize: 12, color: COLORS.subText, fontWeight: '600' },
+  friendCodeValue: { fontSize: 16, fontWeight: '800', color: COLORS.text },
 
   menuBtn: {
     backgroundColor: COLORS.bgSoft,
@@ -1128,6 +1318,7 @@ const styles = StyleSheet.create({
   notifTime: { marginTop: 6, color: '#9aa0a6', fontSize: 12, textAlign: 'left' },
 
   backBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 6, paddingHorizontal: 8 },
+  refreshBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, padding: 6 },
   backText: { fontSize: 14, color: COLORS.text, fontWeight: '600' },
   subTitle: { fontSize: 18, fontWeight: '800', color: COLORS.text },
 

@@ -53,6 +53,12 @@ const EventButton = ({ item, isEditMode, onPress, onLongPress, onEditName, onEdi
             </BlurView>
           </Animated.View>
 
+          {item.shared && (
+            <View style={styles.sharedTag}>
+              <Text style={styles.sharedTagText}>🤝 משותף</Text>
+            </View>
+          )}
+
           {isEditMode && (
             <View style={styles.editButtonsContainer}>
               <TouchableOpacity style={styles.editButtonCircle} onPress={onDelete}>
@@ -100,6 +106,16 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     overflow: 'hidden',
   },
+  sharedTag: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    backgroundColor: 'rgba(61, 214, 208, 0.9)',
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  sharedTagText: { color: '#fff', fontSize: 12, fontWeight: '700' },
   eventButtonName: {
     color: '#333',
     fontWeight: '600',
