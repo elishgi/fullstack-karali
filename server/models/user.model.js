@@ -1,21 +1,25 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
 
-//סכמת המשתמש (שם, אימייל , סיסמא)
+// סכמת המשתמש המלאה
 const userSchema = new mongoose.Schema({
-  name: { type: String, required: true },
+  username: { type: String, required: true, unique: true },
+  name: { type: String, required: false },
+  lastName: { type: String, required: false },
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
+  phone: { type: Number, required: false },
 });
 
-//יצירת הצפנה לסיסמא
+
+// הצפנת סיסמה לפני שמירה
 userSchema.pre('save', async function (next) {
   if (!this.isModified('password')) return next();
   this.password = await bcrypt.hash(this.password, 10);
   next();
 });
 
-//השוואה בין ההצפנה לססימא הקיימת
+// השוואת סיסמאות
 userSchema.methods.comparePassword = function (candidatePassword) {
   return bcrypt.compare(candidatePassword, this.password);
 };
