@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -11,11 +10,13 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Ionicons } from '@expo/vector-icons';
 import api from '../services/api';
 
 export default function LoginScreen({ navigation }) {
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     const checkLogin = async () => {
@@ -39,7 +40,6 @@ export default function LoginScreen({ navigation }) {
     }
   };
 
-
   return (
     <ImageBackground
       source={require('C:/Users/User/fullstack-karali/client/assets/images/backgroundCool.png')}
@@ -58,15 +58,31 @@ export default function LoginScreen({ navigation }) {
           textAlign="right"
           placeholderTextColor="#999"
         />
-        <TextInput
-          placeholder="סיסמה"
-          style={styles.input}
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-          textAlign="right"
-          placeholderTextColor="#999"
-        />
+
+        {/* שדה סיסמה עם עין */}
+        <View style={styles.passwordWrap}>
+          <TextInput
+            placeholder="סיסמה"
+            style={[styles.input, { paddingRight: 42, marginBottom: 4 }]}
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry={!showPassword}
+            textAlign="right"
+            autoCapitalize="none"
+            placeholderTextColor="#999"
+          />
+          <TouchableOpacity
+            style={styles.eyeBtn}
+            onPress={() => setShowPassword((v) => !v)}
+            accessibilityLabel={showPassword ? 'הסתר סיסמה' : 'הצג סיסמה'}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={22} color="#666" />
+          </TouchableOpacity>
+        </View>
+
+        {/* הערת אזהרה קטנה מתחת לסיסמה */}
+        <Text style={styles.passwordNote}>יש לשים לב לאותיות קטנות וגדולות</Text>
 
         <TouchableOpacity style={styles.button} onPress={handleLogin}>
           <Text style={styles.buttonText}>התחבר</Text>
@@ -102,7 +118,6 @@ const styles = StyleSheet.create({
     resizeMode: 'contain',
     alignSelf: 'center',
   },
-
   title: {
     fontSize: 25,
     marginBottom: 20,
@@ -120,6 +135,27 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     width: '100%',
     fontSize: 16,
+  },
+  passwordWrap: {
+    width: '100%',
+    position: 'relative',
+  },
+  eyeBtn: {
+    position: 'absolute',
+    right: 10,
+    top: 10,
+    height: 30,
+    width: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  passwordNote: {
+    width: '100%',
+    textAlign: 'right',
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 12,
+    marginTop: -2,
   },
   button: {
     backgroundColor: '#3DD6D0',
