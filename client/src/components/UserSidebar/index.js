@@ -155,14 +155,16 @@ function UserSidebar({ visible, onClose, user, onLogout, onUserUpdated, initialT
 
     const getDisplayName = (userObj) => {
         if (!userObj) return 'משתמש';
+        const username = (userObj.username || '').trim();
+        if (username) return username;
         const primary = (userObj.name || userObj.firstName || '').trim();
         const last = (userObj.lastName || '').trim();
         if (primary || last) return `${primary} ${last}`.trim();
         const name = (userObj.name || '').trim();
         if (name) return name;
-        const username = (userObj.username || '').trim();
-        return username || 'משתמש';
+        return 'משתמש';
     };
+
 
     const normalizeUser = (incoming = {}) => {
         const username = (incoming.username || '').trim();
@@ -207,7 +209,7 @@ function UserSidebar({ visible, onClose, user, onLogout, onUserUpdated, initialT
 
     // להציג את השם המעודכן מיד
     const [sidebarName, setSidebarName] = useState(getDisplayName(user));
-
+    const [sidebarBio, setSidebarBio] = useState('');
 
     // Notifications
     const [notifications, setNotifications] = useState([]);
@@ -298,6 +300,7 @@ function UserSidebar({ visible, onClose, user, onLogout, onUserUpdated, initialT
             const normalized = normalizeUser(stored || user || {});
             setInitialUser(normalized);
             setSidebarName(getDisplayName(normalized));
+            setSidebarBio((normalized.bio || '').trim());
             syncDraftsFrom(normalized);
             setIsEditing(false);
             setConfirmOpen(false);
@@ -447,6 +450,10 @@ function UserSidebar({ visible, onClose, user, onLogout, onUserUpdated, initialT
                 </View>
 
                 <Text style={styles.userName}>{sidebarName}</Text>
+                {!!sidebarBio && (
+                    <Text style={styles.userBioQuote}>“{sidebarBio}”</Text>
+                )}
+
             </View>
 
             <View style={{ marginTop: 12 }}>
@@ -556,6 +563,7 @@ function UserSidebar({ visible, onClose, user, onLogout, onUserUpdated, initialT
             }
 
             const updated = await persistUserEverywhere(payload);
+            setSidebarBio((updated.bio || '').trim());
 
             setInitialUser(updated);
             syncDraftsFrom(updated);
@@ -1295,6 +1303,15 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         gap: 8,
         marginBottom: 8,
+    },
+
+    // עיצוב ציטוט ספר על עצמך
+    userBioQuote: {
+        marginTop: 6,
+        fontSize: 13,
+        color: '#7a7a7a',
+        fontStyle: 'italic',
+        textAlign: 'center',
     },
 
     // סטטיסטיקה
