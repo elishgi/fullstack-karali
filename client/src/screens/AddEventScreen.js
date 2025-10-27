@@ -3,6 +3,7 @@ import {
   View,
   Text,
   TextInput,
+
   StyleSheet,
   Alert,
   ScrollView,
@@ -33,6 +34,7 @@ export default function AddEventScreen() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
 
+ feat/user-sidebar
   const [isShared, setIsShared] = useState(false);
   const [friends] = useState([
     { id: 'u1', name: 'אשתי היקרה' },
@@ -50,11 +52,7 @@ export default function AddEventScreen() {
 
   const formattedExpiration = useMemo(() => {
     if (!hasExpiration || !expirationDate) return 'ללא תפוגה';
-    try {
-      return expirationDate.toLocaleString('he-IL');
-    } catch (error) {
-      return expirationDate.toLocaleString();
-    }
+ feat/user-sidebar
   }, [expirationDate, hasExpiration]);
 
   const handleAddEvent = async () => {
@@ -80,7 +78,7 @@ export default function AddEventScreen() {
       color,
       totalColor: 0,
       shared: isShared,
-      participants: selectedFriendIds,
+ feat/user-sidebar
       ...(hasExpiration
         ? {
             expiresAt: expirationDate.toISOString(),
@@ -137,74 +135,11 @@ export default function AddEventScreen() {
     }
   };
 
-  const renderExpirationSection = () => {
-    if (!hasExpiration) {
-      return null;
-    }
-
-    return (
-      <View style={styles.expirationBox}>
-        <Text style={styles.expirationLabel}>התפוגה הנוכחית</Text>
-        <Text style={styles.expirationValue}>{formattedExpiration}</Text>
-
-        <View style={styles.expirationButtonsRow}>
-          <TouchableOpacity
-            style={styles.expirationBtn}
-            onPress={() => setShowDatePicker(true)}
-            activeOpacity={0.85}
-          >
-            <Text style={styles.expirationBtnText}>בחר תאריך</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.expirationBtn}
-            onPress={() => setShowTimePicker(true)}
-            activeOpacity={0.85}
-          >
-            <Text style={styles.expirationBtnText}>בחר שעה</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    );
-  };
-
-  const renderSharedSection = () => {
-    if (!isShared) {
-      return null;
-    }
-
-    return (
-      <>
-        <View style={styles.selectedChip}>
-          <Text style={styles.selectedChipText}>
-            נבחרו {selectedFriendIds.length} חבר/ים
-          </Text>
-        </View>
-
-        <View style={styles.friendsBox}>
-          <Text style={styles.friendsTitle}>בחרו עם מי לשתף את האירוע</Text>
-          {friends.map((friend) => {
-            const checked = selectedFriendIds.includes(friend.id);
-            return (
-              <TouchableOpacity
-                key={friend.id}
-                style={styles.friendRow}
-                onPress={() => toggleSelectFriend(friend.id)}
-                activeOpacity={0.8}
-              >
-                <View style={[styles.checkbox, checked && styles.checkboxChecked]}>
-                  {checked && <Text style={styles.checkmark}>✓</Text>}
-                </View>
-                <Text style={styles.friendName}>{friend.name}</Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-      </>
-    );
-  };
-
   return (
-    <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+    <ScrollView
+      contentContainerStyle={styles.container}
+      keyboardShouldPersistTaps="handled"
+    >
       <View style={styles.headerWrapper}>
         <Text style={styles.title}>הוספת אירוע חדש</Text>
         <Text style={styles.subtitle}>צרו אירוע מותאם אישית ותחילת תיעוד מיידי</Text>
@@ -220,6 +155,8 @@ export default function AddEventScreen() {
           placeholderTextColor="#9aa0a6"
         />
       </View>
+    );
+  };
 
       <View style={styles.sectionCard}>
         <Text style={styles.label}>בחרו צבע לזיהוי מהיר</Text>
@@ -236,7 +173,7 @@ export default function AddEventScreen() {
         </View>
       </View>
 
-      <View style={styles.sectionCard}>
+ feat/user-sidebar
         <TouchableOpacity
           style={[styles.actionToggle, hasExpiration && styles.actionToggleActive]}
           onPress={() => setHasExpiration((prev) => !prev)}
@@ -246,10 +183,33 @@ export default function AddEventScreen() {
             {hasExpiration ? '⏰ תפוגת אירוע פעילה' : '⏰ הגדרת תפוגה לאירוע'}
           </Text>
         </TouchableOpacity>
-        {renderExpirationSection()}
+
+        {hasExpiration && (
+          <View style={styles.expirationBox}>
+            <Text style={styles.expirationLabel}>התפוגה הנוכחית</Text>
+            <Text style={styles.expirationValue}>{formattedExpiration}</Text>
+
+            <View style={styles.expirationButtonsRow}>
+              <TouchableOpacity
+                style={styles.expirationBtn}
+                onPress={() => setShowDatePicker(true)}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.expirationBtnText}>בחר תאריך</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.expirationBtn}
+                onPress={() => setShowTimePicker(true)}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.expirationBtnText}>בחר שעה</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
       </View>
 
-      {showDatePicker ? (
+      {showDatePicker && (
         <DateTimePicker
           value={expirationDate}
           mode="date"
@@ -258,18 +218,14 @@ export default function AddEventScreen() {
             setShowDatePicker(Platform.OS === 'ios');
             if (selectedDate) {
               const updated = new Date(expirationDate);
-              updated.setFullYear(
-                selectedDate.getFullYear(),
-                selectedDate.getMonth(),
-                selectedDate.getDate()
-              );
+              updated.setFullYear(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
               setExpirationDate(updated);
             }
           }}
         />
-      ) : null}
+      )}
 
-      {showTimePicker ? (
+      {showTimePicker && (
         <DateTimePicker
           value={expirationDate}
           mode="time"
@@ -283,7 +239,7 @@ export default function AddEventScreen() {
             }
           }}
         />
-      ) : null}
+      )}
 
       <View style={styles.sectionCard}>
         <TouchableOpacity
@@ -295,7 +251,36 @@ export default function AddEventScreen() {
             {isShared ? '🤝 אירוע משותף פעיל' : '🤝 אירוע משותף'}
           </Text>
         </TouchableOpacity>
-        {renderSharedSection()}
+
+        {isShared && (
+          <>
+            <View style={styles.selectedChip}>
+              <Text style={styles.selectedChipText}>
+                נבחרו {selectedFriendIds.length} חבר/ים
+              </Text>
+            </View>
+
+            <View style={styles.friendsBox}>
+              <Text style={styles.friendsTitle}>בחרו עם מי לשתף את האירוע</Text>
+              {friends.map((friend) => {
+                const checked = selectedFriendIds.includes(friend.id);
+                return (
+                  <TouchableOpacity
+                    key={friend.id}
+                    style={styles.friendRow}
+                    onPress={() => toggleSelectFriend(friend.id)}
+                    activeOpacity={0.8}
+                  >
+                    <View style={[styles.checkbox, checked && styles.checkboxChecked]}>
+                      {checked && <Text style={styles.checkmark}>✓</Text>}
+                    </View>
+                    <Text style={styles.friendName}>{friend.name}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </>
+        )}
       </View>
 
       <View style={styles.buttonWrapper}>
@@ -404,58 +389,27 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 2,
   },
-  actionToggleActive: {
-    backgroundColor: '#dff8f6',
-    borderColor: ACCENT,
-  },
-  actionToggleText: {
-    fontSize: 16,
-    color: '#1f2933',
-    fontWeight: '700',
-    textAlign: 'center',
-  },
-  actionToggleTextActive: {
-    color: ACCENT_DARK,
-  },
-  expirationBox: {
-    backgroundColor: '#f7fbff',
-    borderRadius: 14,
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-    borderWidth: 1,
-    borderColor: '#d7e2f2',
-    gap: 12,
+ feat/user-sidebar
   },
   expirationLabel: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#2f3c4a',
-    textAlign: 'right',
-  },
-  expirationValue: {
-    fontSize: 16,
-    color: '#1f2933',
-    textAlign: 'right',
+ feat/user-sidebar
   },
   expirationButtonsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+ feat/user-sidebar
     gap: 12,
   },
   expirationBtn: {
     flex: 1,
-    paddingVertical: 12,
-    borderRadius: 12,
-    backgroundColor: '#e4f1ff',
-    borderWidth: 1,
-    borderColor: '#c1dbff',
-    alignItems: 'center',
-    justifyContent: 'center',
+ feat/user-sidebar
   },
   expirationBtnText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#175cd3',
+ feat/user-sidebar
   },
   selectedChip: {
     paddingHorizontal: 14,
