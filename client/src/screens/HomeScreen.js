@@ -31,9 +31,11 @@ import SortOptionsModal from '../components/SortOptionsModal';
 import EventsFilterBar from '../components/EventsFilterBar';
 import TopActionsBar from '../components/TopActionsBar';
 import EmptyEventsState from '../components/EmptyEventsState';
-
-const NOTIF_KEY = 'notifications';
-const NOTIF_UNREAD_KEY = 'notifications_unread_count';
+import {
+  NOTIF_UNREAD_KEY,
+  loadNotificationsFromStorage,
+  saveNotificationsToStorage,
+} from '../utils/notifications';
 
 const composeUserDisplayName = (user) => {
   if (!user) return 'ללא שם';
@@ -131,8 +133,8 @@ const HomeScreen = () => {
   }, []);
 
   const ensureDemoNotification = useCallback(async () => {
-    const existing = await AsyncStorage.getItem(NOTIF_KEY);
-    if (existing) return;
+    const existing = await loadNotificationsFromStorage();
+    if (existing.length > 0) return;
 
     const demo = [
       {
@@ -145,8 +147,7 @@ const HomeScreen = () => {
       },
     ];
 
-    await AsyncStorage.setItem(NOTIF_KEY, JSON.stringify(demo));
-    await AsyncStorage.setItem(NOTIF_UNREAD_KEY, '1');
+    await saveNotificationsToStorage(demo);
   }, []);
 
   const refreshUnread = useCallback(async () => {
