@@ -26,7 +26,33 @@ const eventSchema = new mongoose.Schema({
     participants: {
         type: [String],
         default: []
+    },
+    expiresAt: {
+        type: Date,
+        default: null
+    },
+    expirationDurationMs: {
+        type: Number,
+        default: null
+    },
+    expirationNotified: {
+        type: Boolean,
+        default: false
+    },
+    expirationAcknowledged: {
+        type: Boolean,
+        default: false
+    },
+    archived: {
+        type: Boolean,
+        default: false
+    },
+    lastPressedAt: {
+        type: Date,
+        default: null
     }
+}, {
+    timestamps: true
 });
 
 module.exports = mongoose.model('Event', eventSchema);
