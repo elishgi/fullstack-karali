@@ -122,8 +122,8 @@ export default function AddEventScreen() {
       <View style={styles.sharedRow}>
         <TouchableOpacity
           style={[styles.sharedBtn, isShared && styles.sharedBtnActive]}
-          onPress={() => setIsShared(s => !s)}
-          activeOpacity={0.8}
+          onPress={() => setIsShared((s) => !s)}
+          activeOpacity={0.85}
         >
           <Text style={[styles.sharedBtnText, isShared && styles.sharedBtnTextActive]}>
             {isShared ? 'אירוע משותף: פעיל' : 'אירוע משותף?'}
@@ -214,32 +214,43 @@ const styles = StyleSheet.create({
   sharedRow: {
     flexDirection: 'row-reverse',
     alignItems: 'center',
-    marginBottom: 10,
-    gap: 10,
+    justifyContent: 'center',
+    flexWrap: 'wrap',
+    marginBottom: 16,
+    gap: 12,
   },
   sharedBtn: {
-    flexGrow: 0,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 10,
+    minWidth: '65%',
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#ddd',
-    backgroundColor: '#f8f8f8',
+    borderColor: '#d5d5d5',
+    backgroundColor: '#f8f9ff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
   },
   sharedBtnActive: {
-    backgroundColor: '#eef6ff',
-    borderColor: '#b6d4fe',
+    backgroundColor: '#e6f0ff',
+    borderColor: '#9fc5ff',
+    elevation: 3,
   },
-  sharedBtnText: { fontSize: 16, color: '#333', fontWeight: '600' },
+  sharedBtnText: { fontSize: 16, color: '#2b2b2b', fontWeight: '700', textAlign: 'center' },
   sharedBtnTextActive: { color: '#0b69ff' },
 
   selectedChip: {
-    paddingHorizontal: 10,
+    paddingHorizontal: 14,
     paddingVertical: 6,
     borderRadius: 999,
-    backgroundColor: '#f1f1f1',
+    backgroundColor: '#eef1f7',
   },
-  selectedChipText: { fontSize: 12, color: '#555' },
+  selectedChipText: { fontSize: 12, color: '#3b3b3b', fontWeight: '600' },
 
   friendsBox: {
     borderWidth: 1,

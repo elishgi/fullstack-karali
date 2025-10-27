@@ -18,6 +18,14 @@ const eventSchema = new mongoose.Schema({
     totalColor: {
         type: Number,
         default: 0
+    },
+    shared: {
+        type: Boolean,
+        default: false
+    },
+    participants: {
+        type: [String],
+        default: []
     }
 });
 
