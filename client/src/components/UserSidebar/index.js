@@ -10,11 +10,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { deleteAccount, resetAccount, updateCurrentUser } from '../../services/api';
-
-
-// ----- Notifications state -----
-const NOTIF_KEY = 'notifications';
-const NOTIF_UNREAD_KEY = 'notifications_unread_count';
+import {
+    NOTIF_KEY,
+    NOTIF_UNREAD_KEY,
+    loadNotificationsFromStorage,
+    saveNotificationsToStorage,
+    removeNotificationFromStorage,
+} from '../../utils/notifications';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const PANEL_WIDTH = SCREEN_WIDTH * 0.82;
@@ -218,19 +220,14 @@ function UserSidebar({ visible, onClose, user, onLogout, onUserUpdated, initialT
     const [notifications, setNotifications] = useState([]);
     const unreadCount = notifications.filter(n => !n.read).length;
 
-    const NOTIF_KEY = 'notifications';
-    const NOTIF_UNREAD_KEY = 'notifications_unread_count';
-
     const persistNotifications = async (list) => {
         setNotifications(list);
-        await AsyncStorage.setItem(NOTIF_KEY, JSON.stringify(list));
-        const unread = list.filter(n => !n.read).length;
-        await AsyncStorage.setItem(NOTIF_UNREAD_KEY, String(unread)); // ← עדכן מונה תמיד
+        await saveNotificationsToStorage(list);
     };
 
-    const seedIfEmpty = async () => {
-        const raw = await AsyncStorage.getItem(NOTIF_KEY);
-        if (raw) return JSON.parse(raw);
+    const seedIfEmpty = useCallback(async () => {
+        const existing = await loadNotificationsFromStorage();
+        if (existing.length > 0) return existing;
 
         const demo = [{
             id: 'demo-1',
@@ -241,27 +238,23 @@ function UserSidebar({ visible, onClose, user, onLogout, onUserUpdated, initialT
             starred: false,
         }];
 
-        await persistNotifications(demo);
+        await saveNotificationsToStorage(demo);
         return demo;
-    };
+    }, []);
 
     const loadNotifications = useCallback(async () => {
         try {
-            const raw = await AsyncStorage.getItem(NOTIF_KEY);
-            if (!raw) {
+            const list = await loadNotificationsFromStorage();
+            if (list.length === 0) {
                 const demo = await seedIfEmpty();
                 setNotifications(demo);
             } else {
-                const list = JSON.parse(raw) || [];
                 setNotifications(list);
-                // עדכן מונה גם כאן, ליתר בטחון
-                const unread = list.filter(n => !n.read).length;
-                await AsyncStorage.setItem(NOTIF_UNREAD_KEY, String(unread));
             }
         } catch {
             setNotifications([]);
         }
-    }, []);
+    }, [seedIfEmpty]);
 
     useEffect(() => {
         if (activeIndex === 3 && visible) {
@@ -899,6 +892,25 @@ function UserSidebar({ visible, onClose, user, onLogout, onUserUpdated, initialT
             );
         };
 
+        const confirmDeleteNotification = (n) => {
+            Alert.alert(
+                'מחיקת התראה',
+                'האם למחוק את ההתראה הזו לצמיתות?',
+                [
+                    { text: 'בטל', style: 'cancel' },
+                    {
+                        text: 'מחק',
+                        style: 'destructive',
+                        onPress: async () => {
+                            const next = await removeNotificationFromStorage(n.id);
+                            setNotifications(next);
+                        },
+                    },
+                ],
+                { cancelable: true }
+            );
+        };
+
         return (
             <View style={styles.panelInner}>
                 {/* כותרת עליונה נקייה */}
@@ -971,6 +983,12 @@ function UserSidebar({ visible, onClose, user, onLogout, onUserUpdated, initialT
                                                     const next = notifications.map(x => x.id === n.id ? { ...x, starred: !x.starred } : x);
                                                     await persistNotifications(next);
                                                 }}
+                                            />
+                                            <Ionicons
+                                                name="trash-outline"
+                                                size={18}
+                                                color="#E53935"
+                                                onPress={() => confirmDeleteNotification(n)}
                                             />
                                             {/* נקודה אדומה אם לא נקרא */}
                                             {isUnread && <View style={styles.unreadDot} />}

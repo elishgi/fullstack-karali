@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, Button, StyleSheet, Alert, ScrollView, TouchableOpacity } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { addEvent } from '../services/api';
+import { addEvent, getEvents } from '../services/api';
 import WheelColorPicker from 'react-native-wheel-color-picker';
+import { appendNotificationToStorage } from '../utils/notifications';
 
 export default function AddEventScreen() {
   const navigation = useNavigation();
@@ -47,7 +48,44 @@ export default function AddEventScreen() {
     };
 
     try {
+      let existingEventsCount = null;
+      try {
+        const existingEvents = await getEvents();
+        existingEventsCount = Array.isArray(existingEvents) ? existingEvents.length : 0;
+      } catch (fetchError) {
+        console.warn('getEvents before addEvent failed', fetchError);
+      }
+
       await addEvent(newEvent);
+
+      const notificationsToCreate = [];
+
+      if (existingEventsCount === 0) {
+        notificationsToCreate.push({
+          title: '🎉 מזל טוב על האירוע הראשון!',
+          body: 'איזו התחלה מרגשת! זאת הפעם הראשונה שאתה יוצר אירוע באפליקציה – מאחלים לך המון הצלחה בהמשך החוויה.',
+        });
+      }
+
+      if (isShared) {
+        const selectedNames = friends
+          .filter((friend) => selectedFriendIds.includes(friend.id))
+          .map((friend) => friend.name);
+
+        const namesLine = selectedNames.length > 0
+          ? `האירוע ישותף עם: ${selectedNames.join(', ')}`
+          : 'האירוע ישותף עם החברים שבחרת.';
+
+        notificationsToCreate.push({
+          title: '📢 אירוע משותף חדש',
+          body: `איזה כיף! הרגע יצרת אירוע משותף חדש. ${namesLine}`,
+        });
+      }
+
+      for (const notif of notificationsToCreate) {
+        await appendNotificationToStorage(notif);
+      }
+
       Alert.alert('אירוע חדש נוסף בהצלחה');
       navigation.navigate('Home', { refresh: true });
     } catch (error) {
