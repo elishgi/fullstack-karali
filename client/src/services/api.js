@@ -43,16 +43,4 @@ export const updateCurrentUser = async (updates) => {
   }
 };
 
-export const loginWithGoogle = async (idToken) => (
-  await api.post('/api/users/auth/google', { idToken })
-).data;
-
-export const requestPasswordReset = async (email) => (
-  await api.post('/api/users/forgot-password', { email })
-).data;
-
-export const resetPassword = async (token, password) => (
-  await api.post('/api/users/reset-password', { token, password })
-).data;
-
 export default api;

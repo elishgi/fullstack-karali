@@ -2,29 +2,13 @@
 
 const express = require('express');
 const router = express.Router();
-const {
-  signup,
-  login,
-  googleAuth,
-  forgotPassword,
-  resetPassword,
-  deleteAccount,
-  resetAccount,
-  updateAccount,
-} = require('../controllers/user.controller');
+const { signup, login, deleteAccount, resetAccount, updateAccount } = require('../controllers/user.controller');
 const auth = require('../middleware/auth');
 
 //רישום משתמש חדש
 router.post('/signup', signup);
 //התחברות משתמש קיים
 router.post('/login', login);
-
-// התחברות/הרשמה חכמה באמצעות Google
-router.post('/auth/google', googleAuth);
-
-// תהליך שחזור סיסמה
-router.post('/forgot-password', forgotPassword);
-router.post('/reset-password', resetPassword);
 
 // מחיקת חשבון כולל כל הנתונים
 router.delete('/account', auth, deleteAccount);
