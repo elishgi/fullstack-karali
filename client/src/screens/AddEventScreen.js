@@ -3,6 +3,7 @@ import {
   View,
   Text,
   TextInput,
+
   StyleSheet,
   Alert,
   ScrollView,
@@ -33,6 +34,7 @@ export default function AddEventScreen() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
 
+ feat/user-sidebar
   const [isShared, setIsShared] = useState(false);
   const [friends] = useState([
     { id: 'u1', name: 'אשתי היקרה' },
@@ -50,11 +52,7 @@ export default function AddEventScreen() {
 
   const formattedExpiration = useMemo(() => {
     if (!hasExpiration || !expirationDate) return 'ללא תפוגה';
-    try {
-      return expirationDate.toLocaleString('he-IL');
-    } catch (error) {
-      return expirationDate.toLocaleString();
-    }
+ feat/user-sidebar
   }, [expirationDate, hasExpiration]);
 
   const handleAddEvent = async () => {
@@ -80,7 +78,7 @@ export default function AddEventScreen() {
       color,
       totalColor: 0,
       shared: isShared,
-      participants: selectedFriendIds,
+ feat/user-sidebar
       ...(hasExpiration
         ? {
             expiresAt: expirationDate.toISOString(),
@@ -172,7 +170,7 @@ export default function AddEventScreen() {
         </View>
       </View>
 
-      <View style={styles.sectionCard}>
+ feat/user-sidebar
         <TouchableOpacity
           style={[styles.actionToggle, hasExpiration && styles.actionToggleActive]}
           onPress={() => setHasExpiration((prev) => !prev)}
@@ -388,58 +386,27 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 2,
   },
-  actionToggleActive: {
-    backgroundColor: '#dff8f6',
-    borderColor: ACCENT,
-  },
-  actionToggleText: {
-    fontSize: 16,
-    color: '#1f2933',
-    fontWeight: '700',
-    textAlign: 'center',
-  },
-  actionToggleTextActive: {
-    color: ACCENT_DARK,
-  },
-  expirationBox: {
-    backgroundColor: '#f7fbff',
-    borderRadius: 14,
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-    borderWidth: 1,
-    borderColor: '#d7e2f2',
-    gap: 12,
+ feat/user-sidebar
   },
   expirationLabel: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#2f3c4a',
-    textAlign: 'right',
-  },
-  expirationValue: {
-    fontSize: 16,
-    color: '#1f2933',
-    textAlign: 'right',
+ feat/user-sidebar
   },
   expirationButtonsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+ feat/user-sidebar
     gap: 12,
   },
   expirationBtn: {
     flex: 1,
-    paddingVertical: 12,
-    borderRadius: 12,
-    backgroundColor: '#e4f1ff',
-    borderWidth: 1,
-    borderColor: '#c1dbff',
-    alignItems: 'center',
-    justifyContent: 'center',
+ feat/user-sidebar
   },
   expirationBtnText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#175cd3',
+ feat/user-sidebar
   },
   selectedChip: {
     paddingHorizontal: 14,
