@@ -1,24 +1,20 @@
 import React from 'react';
-import { Modal, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import WheelColorPicker from 'react-native-wheel-color-picker';
+import { Modal, View, Text, TouchableOpacity, StyleSheet, TextInput } from 'react-native';
 
-const ColorPickerModal = ({ visible, color, onColorChange, onSave, onClose }) => (
+const EditEventNameModal = ({ visible, name, onChangeName, onSave, onClose }) => (
     <Modal visible={visible} transparent animationType="slide">
         <View style={styles.modalContainer}>
             <View style={styles.modalContent}>
-                <Text style={styles.modalTitle}>בחר צבע חדש</Text>
-                <View style={styles.colorPickerWrapper}>
-                    <View style={styles.colorWheelWrapper}>
-                        <WheelColorPicker
-                            color={color}
-                            onColorChangeComplete={onColorChange}
-                            style={styles.colorWheel}
-                        />
-                    </View>
-                </View>
+                <Text style={styles.modalTitle}>ערוך שם אירוע</Text>
+                <TextInput
+                    style={styles.input}
+                    placeholder="שם חדש לאירוע"
+                    value={name}
+                    onChangeText={onChangeName}
+                />
                 <View style={styles.buttonsRow}>
                     <TouchableOpacity style={styles.modalButton} onPress={onSave}>
-                        <Text style={styles.modalButtonText}>💾 שמור צבע</Text>
+                        <Text style={styles.modalButtonText}>💾 שמור שם</Text>
                     </TouchableOpacity>
                     <TouchableOpacity style={styles.modalButton} onPress={onClose}>
                         <Text style={styles.modalButtonText}>ביטול</Text>
@@ -48,22 +44,14 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         marginBottom: 15,
     },
-    colorPickerWrapper: {
-        marginVertical: 10,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    colorWheelWrapper: {
-        width: 200,
-        height: 200,
-        overflow: 'hidden',
-        borderRadius: 100,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    colorWheel: {
-        width: 200,
-        height: 200,
+    input: {
+        borderWidth: 1,
+        borderColor: '#ccc',
+        borderRadius: 8,
+        padding: 10,
+        width: '100%',
+        marginBottom: 15,
+        fontSize: 16,
     },
     buttonsRow: {
         flexDirection: 'row',
@@ -86,4 +74,4 @@ const styles = StyleSheet.create({
     },
 });
 
-export default ColorPickerModal;
+export default EditEventNameModal;
