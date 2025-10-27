@@ -3,7 +3,6 @@ import {
   View,
   Text,
   TextInput,
-
   StyleSheet,
   Alert,
   ScrollView,
@@ -22,6 +21,7 @@ const ACCENT_DARK = '#0f766e';
 
 export default function AddEventScreen() {
   const navigation = useNavigation();
+
   const [name, setName] = useState('');
   const [color, setColor] = useState('#000000');
 
@@ -34,7 +34,6 @@ export default function AddEventScreen() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
 
- feat/user-sidebar
   const [isShared, setIsShared] = useState(false);
   const [friends] = useState([
     { id: 'u1', name: 'אשתי היקרה' },
@@ -52,7 +51,10 @@ export default function AddEventScreen() {
 
   const formattedExpiration = useMemo(() => {
     if (!hasExpiration || !expirationDate) return 'ללא תפוגה';
- feat/user-sidebar
+    const d = expirationDate;
+    const date = d.toLocaleDateString('he-IL', { year: 'numeric', month: '2-digit', day: '2-digit' });
+    const time = d.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', hour12: false });
+    return `${date} בשעה ${time}`;
   }, [expirationDate, hasExpiration]);
 
   const handleAddEvent = async () => {
@@ -78,12 +80,11 @@ export default function AddEventScreen() {
       color,
       totalColor: 0,
       shared: isShared,
- feat/user-sidebar
       ...(hasExpiration
         ? {
-            expiresAt: expirationDate.toISOString(),
-            expirationDurationMs: Math.max(expirationDate.getTime() - Date.now(), 0),
-          }
+          expiresAt: expirationDate.toISOString(),
+          expirationDurationMs: Math.max(expirationDate.getTime() - Date.now(), 0),
+        }
         : { expiresAt: null, expirationDurationMs: null }),
     };
 
@@ -136,10 +137,7 @@ export default function AddEventScreen() {
   };
 
   return (
-    <ScrollView
-      contentContainerStyle={styles.container}
-      keyboardShouldPersistTaps="handled"
-    >
+    <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
       <View style={styles.headerWrapper}>
         <Text style={styles.title}>הוספת אירוע חדש</Text>
         <Text style={styles.subtitle}>צרו אירוע מותאם אישית ותחילת תיעוד מיידי</Text>
@@ -155,8 +153,6 @@ export default function AddEventScreen() {
           placeholderTextColor="#9aa0a6"
         />
       </View>
-    );
-  };
 
       <View style={styles.sectionCard}>
         <Text style={styles.label}>בחרו צבע לזיהוי מהיר</Text>
@@ -173,7 +169,7 @@ export default function AddEventScreen() {
         </View>
       </View>
 
- feat/user-sidebar
+      <View style={styles.sectionCard}>
         <TouchableOpacity
           style={[styles.actionToggle, hasExpiration && styles.actionToggleActive]}
           onPress={() => setHasExpiration((prev) => !prev)}
@@ -218,7 +214,11 @@ export default function AddEventScreen() {
             setShowDatePicker(Platform.OS === 'ios');
             if (selectedDate) {
               const updated = new Date(expirationDate);
-              updated.setFullYear(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
+              updated.setFullYear(
+                selectedDate.getFullYear(),
+                selectedDate.getMonth(),
+                selectedDate.getDate()
+              );
               setExpirationDate(updated);
             }
           }}
@@ -389,27 +389,22 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 2,
   },
- feat/user-sidebar
-  },
   expirationLabel: {
     fontSize: 15,
     fontWeight: '600',
- feat/user-sidebar
   },
   expirationButtonsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
- feat/user-sidebar
     gap: 12,
+
   },
   expirationBtn: {
     flex: 1,
- feat/user-sidebar
   },
   expirationBtnText: {
     fontSize: 15,
     fontWeight: '600',
- feat/user-sidebar
   },
   selectedChip: {
     paddingHorizontal: 14,
