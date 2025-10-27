@@ -3,7 +3,7 @@ import {
   View,
   Text,
   TextInput,
-  Button,
+
   StyleSheet,
   Alert,
   ScrollView,
@@ -12,9 +12,13 @@ import {
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useNavigation } from '@react-navigation/native';
-import { addEvent, getEvents } from '../services/api';
 import WheelColorPicker from 'react-native-wheel-color-picker';
+
+import { addEvent, getEvents } from '../services/api';
 import { appendNotificationToStorage } from '../utils/notifications';
+
+const ACCENT = '#3dd6d0';
+const ACCENT_DARK = '#0f766e';
 
 export default function AddEventScreen() {
   const navigation = useNavigation();
@@ -30,9 +34,8 @@ export default function AddEventScreen() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
 
-  // --- חדש: מצב אירוע משותף + בחירת חברים ---
+ feat/user-sidebar
   const [isShared, setIsShared] = useState(false);
-  // TODO: להחליף בשליפה אמיתית מ-API/Store של חברים
   const [friends] = useState([
     { id: 'u1', name: 'אשתי היקרה' },
     { id: 'u2', name: 'נועה לוי' },
@@ -41,21 +44,20 @@ export default function AddEventScreen() {
   ]);
   const [selectedFriendIds, setSelectedFriendIds] = useState([]);
 
-
   const toggleSelectFriend = (id) => {
-    setSelectedFriendIds(prev =>
-      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    setSelectedFriendIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
     );
   };
 
   const formattedExpiration = useMemo(() => {
     if (!hasExpiration || !expirationDate) return 'ללא תפוגה';
-    return expirationDate.toLocaleString();
+ feat/user-sidebar
   }, [expirationDate, hasExpiration]);
 
   const handleAddEvent = async () => {
     if (!name.trim()) {
-      Alert.alert("אנא הזן שם לאירוע לפני ההוספה");
+      Alert.alert('אנא הזן שם לאירוע לפני ההוספה');
       return;
     }
     if (isShared && selectedFriendIds.length === 0) {
@@ -75,9 +77,8 @@ export default function AddEventScreen() {
       name,
       color,
       totalColor: 0,
-      // --- שדות חדשים לשלב היסודות של השיתוף ---
       shared: isShared,
-      participants: selectedFriendIds, // מזהי חברים
+ feat/user-sidebar
       ...(hasExpiration
         ? {
             expiresAt: expirationDate.toISOString(),
@@ -129,59 +130,74 @@ export default function AddEventScreen() {
       navigation.navigate('Home', { refresh: true });
     } catch (error) {
       console.error('שגיאה בהוספת אירוע:', error);
-      Alert.alert("אירעה שגיאה בעת הוספת האירוע. נסה שוב.");
+      Alert.alert('אירעה שגיאה בעת הוספת האירוע. נסה שוב.');
     }
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>הוספת אירוע חדש</Text>
+    <ScrollView
+      contentContainerStyle={styles.container}
+      keyboardShouldPersistTaps="handled"
+    >
+      <View style={styles.headerWrapper}>
+        <Text style={styles.title}>הוספת אירוע חדש</Text>
+        <Text style={styles.subtitle}>צרו אירוע מותאם אישית ותחילת תיעוד מיידי</Text>
+      </View>
 
-      <Text style={styles.label}>שם האירוע:</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="הכנס שם אירוע"
-        value={name}
-        onChangeText={setName}
-      />
-
-      <Text style={styles.label}>בחר צבע:</Text>
-      <View style={styles.colorPickerWrapper}>
-        <WheelColorPicker
-          color={color}
-          onColorChangeComplete={(selectedColor) => setColor(selectedColor)}
-          style={styles.colorPicker}
+      <View style={styles.sectionCard}>
+        <Text style={styles.label}>שם האירוע</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="תנו שם שמתאים לכם"
+          value={name}
+          onChangeText={setName}
+          placeholderTextColor="#9aa0a6"
         />
       </View>
 
-      <Text style={styles.label}>תצוגת צבע נבחר:</Text>
-      <View style={[styles.colorPreview, { backgroundColor: color }]} />
+      <View style={styles.sectionCard}>
+        <Text style={styles.label}>בחרו צבע לזיהוי מהיר</Text>
+        <View style={styles.colorPickerWrapper}>
+          <WheelColorPicker
+            color={color}
+            onColorChangeComplete={(selectedColor) => setColor(selectedColor)}
+            style={styles.colorPicker}
+          />
+        </View>
+        <View style={styles.colorPreview}>
+          <View style={[styles.colorSwatch, { backgroundColor: color }]} />
+          <Text style={styles.colorPreviewText}>כך האירוע ייראה ברשימה</Text>
+        </View>
+      </View>
 
-      <View style={styles.expirationWrapper}>
+ feat/user-sidebar
         <TouchableOpacity
-          style={[styles.expirationToggle, hasExpiration && styles.expirationToggleActive]}
+          style={[styles.actionToggle, hasExpiration && styles.actionToggleActive]}
           onPress={() => setHasExpiration((prev) => !prev)}
+          activeOpacity={0.9}
         >
-          <Text style={[styles.expirationToggleText, hasExpiration && styles.expirationToggleTextActive]}>
-            {hasExpiration ? '⏰ תפוגת אירוע: פעילה' : 'להגדיר תפוגה לאירוע?'}
+          <Text style={[styles.actionToggleText, hasExpiration && styles.actionToggleTextActive]}>
+            {hasExpiration ? '⏰ תפוגת אירוע פעילה' : '⏰ הגדרת תפוגה לאירוע'}
           </Text>
         </TouchableOpacity>
 
         {hasExpiration && (
           <View style={styles.expirationBox}>
-            <Text style={styles.expirationLabel}>התפוגה הנוכחית:</Text>
+            <Text style={styles.expirationLabel}>התפוגה הנוכחית</Text>
             <Text style={styles.expirationValue}>{formattedExpiration}</Text>
 
             <View style={styles.expirationButtonsRow}>
               <TouchableOpacity
                 style={styles.expirationBtn}
                 onPress={() => setShowDatePicker(true)}
+                activeOpacity={0.85}
               >
                 <Text style={styles.expirationBtnText}>בחר תאריך</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.expirationBtn}
                 onPress={() => setShowTimePicker(true)}
+                activeOpacity={0.85}
               >
                 <Text style={styles.expirationBtnText}>בחר שעה</Text>
               </TouchableOpacity>
@@ -222,238 +238,253 @@ export default function AddEventScreen() {
         />
       )}
 
-      {/* --- חדש: כפתור 'אירוע משותף?' + רשימת חברים --- */}
-      <View style={styles.sharedRow}>
+      <View style={styles.sectionCard}>
         <TouchableOpacity
-          style={[styles.sharedBtn, isShared && styles.sharedBtnActive]}
+          style={[styles.actionToggle, isShared && styles.actionToggleActive]}
           onPress={() => setIsShared((s) => !s)}
-          activeOpacity={0.85}
+          activeOpacity={0.9}
         >
-          <Text style={[styles.sharedBtnText, isShared && styles.sharedBtnTextActive]}>
-            {isShared ? 'אירוע משותף: פעיל' : 'אירוע משותף?'}
+          <Text style={[styles.actionToggleText, isShared && styles.actionToggleTextActive]}>
+            {isShared ? '🤝 אירוע משותף פעיל' : '🤝 אירוע משותף'}
           </Text>
         </TouchableOpacity>
 
         {isShared && (
-          <View style={styles.selectedChip}>
-            <Text style={styles.selectedChipText}>
-              נבחרו {selectedFriendIds.length} חבר/ים
-            </Text>
-          </View>
+          <>
+            <View style={styles.selectedChip}>
+              <Text style={styles.selectedChipText}>
+                נבחרו {selectedFriendIds.length} חבר/ים
+              </Text>
+            </View>
+
+            <View style={styles.friendsBox}>
+              <Text style={styles.friendsTitle}>בחרו עם מי לשתף את האירוע</Text>
+              {friends.map((friend) => {
+                const checked = selectedFriendIds.includes(friend.id);
+                return (
+                  <TouchableOpacity
+                    key={friend.id}
+                    style={styles.friendRow}
+                    onPress={() => toggleSelectFriend(friend.id)}
+                    activeOpacity={0.8}
+                  >
+                    <View style={[styles.checkbox, checked && styles.checkboxChecked]}>
+                      {checked && <Text style={styles.checkmark}>✓</Text>}
+                    </View>
+                    <Text style={styles.friendName}>{friend.name}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </>
         )}
       </View>
 
-      {isShared && (
-        <View style={styles.friendsBox}>
-          <Text style={styles.friendsTitle}>בחר חברים לשיתוף האירוע:</Text>
-          {friends.map((f) => {
-            const checked = selectedFriendIds.includes(f.id);
-            return (
-              <TouchableOpacity
-                key={f.id}
-                style={styles.friendRow}
-                onPress={() => toggleSelectFriend(f.id)}
-                activeOpacity={0.7}
-              >
-                <View style={[styles.checkbox, checked && styles.checkboxChecked]}>
-                  {checked && <Text style={styles.checkmark}>✓</Text>}
-                </View>
-                <Text style={styles.friendName}>{f.name}</Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-      )}
-      {/* --- סוף חדש --- */}
-
       <View style={styles.buttonWrapper}>
-        <Button title="➕ הוסף אירוע" onPress={handleAddEvent} />
+        <TouchableOpacity style={styles.primaryButton} onPress={handleAddEvent} activeOpacity={0.88}>
+          <Text style={styles.primaryButtonText}>➕ שמירה והוספת האירוע</Text>
+        </TouchableOpacity>
       </View>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 20, backgroundColor: '#fff', flexGrow: 1 },
+  container: {
+    paddingHorizontal: 20,
+    paddingVertical: 24,
+    backgroundColor: '#f4f7fb',
+    flexGrow: 1,
+    gap: 18,
+  },
+  headerWrapper: {
+    alignItems: 'flex-end',
+    gap: 6,
+  },
   title: {
     fontSize: 26,
     fontWeight: 'bold',
-    marginBottom: 30,
-    textAlign: 'center',
-    color: '#333',
+    textAlign: 'right',
+    color: '#1f2933',
+  },
+  subtitle: {
+    fontSize: 15,
+    color: '#51606f',
+    textAlign: 'right',
+  },
+  sectionCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 18,
+    paddingVertical: 18,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: '#d8e2f0',
+    shadowColor: '#0a2540',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 3,
+    elevation: 1,
+    gap: 14,
   },
   label: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '600',
-    marginBottom: 10,
-    color: '#555',
+    color: '#2f3c4a',
+    textAlign: 'right',
   },
   input: {
     borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 25,
+    borderColor: '#d0d7e2',
+    borderRadius: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
     fontSize: 16,
+    textAlign: 'right',
+    backgroundColor: '#fff',
+    color: '#1f2933',
   },
   colorPickerWrapper: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 30,
   },
   colorPicker: {
-    width: 250,
-    height: 250,
+    width: 240,
+    height: 240,
   },
   colorPreview: {
-    width: '100%',
-    height: 50,
-    borderRadius: 10,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: '#ccc',
-  },
-
-  /* --- חדש: עיצוב אזור שיתוף --- */
-  sharedRow: {
     flexDirection: 'row-reverse',
     alignItems: 'center',
-    justifyContent: 'center',
-    flexWrap: 'wrap',
-    marginBottom: 16,
+    justifyContent: 'flex-start',
     gap: 12,
   },
-  sharedBtn: {
-    minWidth: '65%',
-    paddingHorizontal: 18,
-    paddingVertical: 12,
+  colorSwatch: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#cfd6df',
+  },
+  colorPreviewText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#52616f',
+    textAlign: 'right',
+  },
+  actionToggle: {
+    width: '100%',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#d5d5d5',
-    backgroundColor: '#f8f9ff',
+    borderColor: '#c6d6e6',
+    backgroundColor: '#f6fbff',
     alignItems: 'center',
     justifyContent: 'center',
-    alignSelf: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowColor: '#0a2540',
+    shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.08,
-    shadowRadius: 4,
+    shadowRadius: 3,
     elevation: 2,
   },
-  expirationWrapper: {
-    marginBottom: 24,
-    borderWidth: 1,
-    borderColor: '#d5d5d5',
-    borderRadius: 14,
-    backgroundColor: '#f9f9ff',
-    padding: 16,
-  },
-  expirationToggle: {
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 12,
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#d0d7ff',
-    alignItems: 'center',
-  },
-  expirationToggleActive: {
-    backgroundColor: '#e8f0ff',
-    borderColor: '#90a4ff',
-  },
-  expirationToggleText: {
-    fontSize: 16,
-    color: '#4a4a4a',
-    fontWeight: '600',
-  },
-  expirationToggleTextActive: {
-    color: '#2948ff',
-  },
-  expirationBox: {
-    marginTop: 16,
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#dde1f9',
-    gap: 8,
+ feat/user-sidebar
   },
   expirationLabel: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#555',
-  },
-  expirationValue: {
-    fontSize: 16,
-    color: '#333',
+ feat/user-sidebar
   },
   expirationButtonsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 10,
+ feat/user-sidebar
     gap: 12,
   },
   expirationBtn: {
     flex: 1,
-    paddingVertical: 10,
-    borderRadius: 10,
-    backgroundColor: '#e0e7ff',
-    alignItems: 'center',
+ feat/user-sidebar
   },
   expirationBtnText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#1a237e',
+ feat/user-sidebar
   },
-  sharedBtnActive: {
-    backgroundColor: '#e6f0ff',
-    borderColor: '#9fc5ff',
-    elevation: 3,
-  },
-  sharedBtnText: { fontSize: 16, color: '#2b2b2b', fontWeight: '700', textAlign: 'center' },
-  sharedBtnTextActive: { color: '#0b69ff' },
-
   selectedChip: {
     paddingHorizontal: 14,
     paddingVertical: 6,
     borderRadius: 999,
-    backgroundColor: '#eef1f7',
+    backgroundColor: '#e1f7f5',
+    alignSelf: 'flex-end',
   },
-  selectedChipText: { fontSize: 12, color: '#3b3b3b', fontWeight: '600' },
-
+  selectedChipText: {
+    fontSize: 12,
+    color: ACCENT_DARK,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
   friendsBox: {
     borderWidth: 1,
-    borderColor: '#e5e5e5',
-    borderRadius: 10,
-    padding: 10,
-    marginBottom: 20,
-    backgroundColor: '#fafafa',
+    borderColor: '#d8e2f0',
+    borderRadius: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    backgroundColor: '#fff',
+    gap: 12,
   },
-  friendsTitle: { fontSize: 15, fontWeight: '600', marginBottom: 8, color: '#444' },
+  friendsTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#2f3c4a',
+    textAlign: 'right',
+  },
   friendRow: {
     flexDirection: 'row-reverse',
     alignItems: 'center',
-    paddingVertical: 8,
+    gap: 12,
+    paddingVertical: 6,
   },
   checkbox: {
-    width: 22,
-    height: 22,
-    borderRadius: 6,
+    width: 24,
+    height: 24,
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#bbb',
+    borderColor: '#bbbfc7',
     alignItems: 'center',
     justifyContent: 'center',
-    marginLeft: 10,
     backgroundColor: '#fff',
   },
   checkboxChecked: {
-    backgroundColor: '#0b69ff',
-    borderColor: '#0b69ff',
+    backgroundColor: ACCENT,
+    borderColor: ACCENT,
   },
-  checkmark: { color: '#fff', fontSize: 14, lineHeight: 14 },
-  friendName: { fontSize: 16, color: '#333' },
-
+  checkmark: {
+    color: '#fff',
+    fontSize: 14,
+    lineHeight: 14,
+  },
+  friendName: {
+    fontSize: 16,
+    color: '#1f2933',
+    textAlign: 'right',
+    flex: 1,
+  },
   buttonWrapper: {
-    marginBottom: 50,
+    marginBottom: 32,
+  },
+  primaryButton: {
+    backgroundColor: ACCENT,
+    paddingVertical: 16,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#0a2540',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  primaryButtonText: {
+    color: '#fff',
+    fontSize: 17,
+    fontWeight: '700',
   },
 });
