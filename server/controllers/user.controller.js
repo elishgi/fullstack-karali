@@ -1,8 +1,76 @@
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
+const nodemailer = require('nodemailer');
+const { OAuth2Client } = require('google-auth-library');
 const User = require('../models/user.model');
 const Event = require('../models/event.model');
 const Log = require('../models/log.model');
 const JWT_SECRET = process.env.JWT_SECRET || 'supersecret';
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
+const googleClient = GOOGLE_CLIENT_ID ? new OAuth2Client(GOOGLE_CLIENT_ID) : null;
+let mailTransport;
+
+const getMailTransport = () => {
+  if (mailTransport) {
+    return mailTransport;
+  }
+
+  if (process.env.SMTP_HOST) {
+    mailTransport = nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: parseInt(process.env.SMTP_PORT || '587', 10),
+      secure: process.env.SMTP_SECURE === 'true',
+      auth: process.env.SMTP_USER
+        ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
+        : undefined,
+    });
+  } else {
+    mailTransport = nodemailer.createTransport({ jsonTransport: true });
+    console.warn('SMTP credentials were not supplied. Password reset e-mails will be logged.');
+  }
+
+  return mailTransport;
+};
+
+const sendPasswordResetEmail = async ({ to, name, resetUrl }) => {
+  const transporter = getMailTransport();
+  const from = process.env.MAIL_FROM || 'no-reply@karali.app';
+
+  const message = {
+    from,
+    to,
+    subject: 'איפוס סיסמה - Karali',
+    text: `שלום ${name || ''}\n\nהתקבלה בקשה לאפס את הסיסמה שלך ב-Karali.\nלחץ על הקישור הבא כדי לבחור סיסמה חדשה:\n${resetUrl}\n\nאם לא ביקשת זאת, ניתן להתעלם מהודעה זו.`,
+    html: `<p>שלום ${name || ''}</p><p>התקבלה בקשה לאפס את הסיסמה שלך ב-Karali.</p><p><a href="${resetUrl}">לחץ כאן לאיפוס הסיסמה</a></p><p>אם לא ביקשת זאת, ניתן להתעלם מהודעה זו.</p>`,
+  };
+
+  await transporter.sendMail(message);
+};
+
+const generateUsernameFromEmail = (email) => {
+  const [localPart] = email.split('@');
+  return localPart.replace(/[^a-zA-Z0-9._-]/g, '') || `user${crypto.randomInt(1000, 9999)}`;
+};
+
+const generateUniqueUsername = async (email, fallbackName) => {
+  let base = fallbackName ? fallbackName.trim().replace(/\s+/g, '').toLowerCase() : '';
+  if (!base) {
+    base = generateUsernameFromEmail(email.toLowerCase());
+  }
+  let candidate = base;
+  let counter = 1;
+
+  while (await User.findOne({ username: candidate })) {
+    candidate = `${base}${counter}`;
+    counter += 1;
+    if (counter > 9999) {
+      candidate = `${base}${crypto.randomInt(10000, 99999)}`;
+      break;
+    }
+  }
+
+  return candidate;
+};
 
 const sanitizeUser = (userDoc) => {
   if (!userDoc) return null;
@@ -14,6 +82,7 @@ const sanitizeUser = (userDoc) => {
     lastName: userDoc.lastName || '',
     phone: userDoc.phone || '',
     bio: userDoc.bio || '',
+    isGoogleAccount: Boolean(userDoc.googleId),
   };
 };
 
@@ -89,6 +158,10 @@ const login = async (req, res) => {
       return res.status(401).json({ message: 'משתמש לא נמצא' });
     }
 
+    if (user.googleId && !user.password) {
+      return res.status(400).json({ message: 'החשבון מחובר לגוגל. התחבר באמצעות "התחברות עם Google".' });
+    }
+
     if (applyLegacyDefaults(user)) {
       await user.save();
     }
@@ -105,6 +178,132 @@ const login = async (req, res) => {
     });
   } catch (err) {
     return res.status(500).json({ message: 'שגיאה בהתחברות' });
+  }
+};
+
+const googleAuth = async (req, res) => {
+  try {
+    const { idToken } = req.body || {};
+    if (!idToken) {
+      return res.status(400).json({ message: 'אסימון גוגל חסר' });
+    }
+
+    if (!googleClient || !GOOGLE_CLIENT_ID) {
+      return res.status(500).json({ message: 'שירות גוגל אינו מוגדר בצד השרת' });
+    }
+
+    const ticket = await googleClient.verifyIdToken({
+      idToken,
+      audience: GOOGLE_CLIENT_ID,
+    });
+
+    const payload = ticket.getPayload();
+    const email = (payload.email || '').toLowerCase();
+    const googleId = payload.sub;
+
+    if (!email || !googleId) {
+      return res.status(400).json({ message: 'האסימון שסופק אינו תקין' });
+    }
+
+    let user = await User.findOne({ $or: [{ googleId }, { email }] });
+
+    if (!user) {
+      const username = await generateUniqueUsername(email, payload.name || payload.given_name);
+      user = new User({
+        username,
+        email,
+        googleId,
+        name: payload.given_name || payload.name || '',
+        lastName: payload.family_name || '',
+      });
+      applyLegacyDefaults(user);
+    } else {
+      if (!user.googleId) {
+        user.googleId = googleId;
+      }
+      if (!user.name && payload.given_name) {
+        user.name = payload.given_name;
+      }
+      if (!user.lastName && payload.family_name) {
+        user.lastName = payload.family_name;
+      }
+    }
+
+    await user.save();
+
+    const token = jwt.sign({ _id: user._id }, JWT_SECRET);
+    return res.json({
+      token,
+      user: sanitizeUser(user),
+    });
+  } catch (err) {
+    console.error('Google auth error:', err);
+    return res.status(500).json({ message: 'נכשלה ההתחברות באמצעות Google' });
+  }
+};
+
+const forgotPassword = async (req, res) => {
+  try {
+    const email = (req.body?.email || '').trim().toLowerCase();
+    if (!email) {
+      return res.status(400).json({ message: 'יש להזין כתובת אימייל' });
+    }
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.json({ message: 'אם קיים חשבון עם כתובת האימייל שסופקה, נשלחה אליו הודעה לאיפוס סיסמה.' });
+    }
+
+    const token = crypto.randomBytes(32).toString('hex');
+    user.resetPasswordToken = token;
+    user.resetPasswordExpires = Date.now() + 1000 * 60 * 60; // שעה אחת
+    await user.save();
+
+    const baseUrl = process.env.PASSWORD_RESET_URL || 'https://karali.app/reset-password';
+    const resetUrl = `${baseUrl}?token=${token}`;
+    await sendPasswordResetEmail({
+      to: email,
+      name: user.name || user.username,
+      resetUrl,
+    });
+
+    return res.json({ message: 'אם קיים חשבון עם כתובת האימייל שסופקה, נשלחה אליו הודעה לאיפוס סיסמה.' });
+  } catch (err) {
+    console.error('Forgot password error:', err);
+    return res.status(500).json({ message: 'לא ניתן היה לשלוח קישור לאיפוס סיסמה' });
+  }
+};
+
+const resetPassword = async (req, res) => {
+  try {
+    const { token, password } = req.body || {};
+
+    if (!token || !password) {
+      return res.status(400).json({ message: 'יש לספק אסימון וסיסמה חדשה' });
+    }
+
+    if (!/^(?=.*[A-Za-z])(?=.*\d).{6,}$/.test(password)) {
+      return res.status(400).json({ message: 'הסיסמה חייבת להכיל לפחות 6 תווים, כולל אות אחת ומספר אחד' });
+    }
+
+    const user = await User.findOne({
+      resetPasswordToken: token,
+      resetPasswordExpires: { $gt: Date.now() },
+    });
+
+    if (!user) {
+      return res.status(400).json({ message: 'הקישור לאיפוס סיסמה אינו תקף או שפג תוקפו' });
+    }
+
+    user.password = password;
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpires = undefined;
+    await user.save();
+
+    return res.json({ message: 'הסיסמה עודכנה בהצלחה. ניתן להתחבר עם הסיסמה החדשה.' });
+  } catch (err) {
+    console.error('Reset password error:', err);
+    return res.status(500).json({ message: 'שגיאה בעת איפוס הסיסמה' });
   }
 };
 
@@ -243,7 +442,7 @@ const updateAccount = async (req, res) => {
 
     Object.assign(user, updates);
 
-     applyLegacyDefaults(user);
+    applyLegacyDefaults(user);
 
     const newPassword = (password || '').trim();
     if (newPassword) {
@@ -268,4 +467,13 @@ const updateAccount = async (req, res) => {
 };
 
 
-module.exports = { signup, login, deleteAccount, resetAccount, updateAccount };
+module.exports = {
+  signup,
+  login,
+  googleAuth,
+  forgotPassword,
+  resetPassword,
+  deleteAccount,
+  resetAccount,
+  updateAccount,
+};
