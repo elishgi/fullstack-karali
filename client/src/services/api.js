@@ -1,5 +1,5 @@
-import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import axios from 'axios';
 
 const api = axios.create({
   baseURL: process.env.EXPO_PUBLIC_API_URL || 'http://10.0.2.2:4000', // fallback לאמולטור
@@ -20,6 +20,10 @@ export const addEvent = async (newEvent) => (await api.post('/api/events', newEv
 export const updateEvent = async (id, updatedEvent) => (await api.put(`/api/events/${id}`, updatedEvent)).data;
 export const deleteEvent = async (id) => (await api.delete(`/api/events/${id}`)).data;
 export const deleteEventAndLogs = async (eventId) => (await api.delete(`/api/eventsWithLogs/${eventId}`)).data;
+export const markEventExpirationNotified = async (id) => (await api.post(`/api/events/${id}/mark-expiration-notified`)).data;
+export const getEventSummary = async (id) => (await api.get(`/api/events/${id}/summary`)).data;
+export const restartEvent = async (id, payload) => (await api.post(`/api/events/${id}/restart`, payload)).data;
+export const archiveEvent = async (id) => (await api.post(`/api/events/${id}/archive`)).data;
 
 export const getLogs = async () => (await api.get('/api/logs')).data;
 export const addLog = async (newLog) => (await api.post('/api/logs', newLog)).data;

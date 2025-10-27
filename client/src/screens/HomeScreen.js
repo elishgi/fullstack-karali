@@ -22,6 +22,10 @@ import {
   getEvents,
   getLogs,
   updateEvent,
+  markEventExpirationNotified,
+  getEventSummary as getEventSummaryApi,
+  restartEvent as restartEventApi,
+  archiveEvent as archiveEventApi,
 } from '../services/api';
 import EventButton from '../components/EventButton';
 import UserSidebar from '../components/UserSidebar';
@@ -35,6 +39,7 @@ import {
   NOTIF_UNREAD_KEY,
   loadNotificationsFromStorage,
   saveNotificationsToStorage,
+  appendNotificationToStorage,
 } from '../utils/notifications';
 
 const composeUserDisplayName = (user) => {
@@ -93,6 +98,75 @@ const getLastPress = (event) => {
   return Number.isNaN(date.getTime()) ? new Date(0) : date;
 };
 
+const parseDateSafely = (value) => {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
+const isEventExpired = (event) => {
+  const expiresAt = parseDateSafely(event?.expiresAt);
+  if (!expiresAt) return false;
+  return expiresAt <= new Date();
+};
+
+const formatExpirationCountdown = (event) => {
+  const expiresAt = parseDateSafely(event?.expiresAt);
+  if (!expiresAt) {
+    return { label: 'ללא תפוגה', isExpired: false };
+  }
+
+  const diffMs = expiresAt.getTime() - Date.now();
+  if (diffMs <= 0) {
+    return { label: 'האירוע הסתיים', isExpired: true };
+  }
+
+  const totalMinutes = Math.floor(diffMs / 60000);
+  const days = Math.floor(totalMinutes / (60 * 24));
+  const hours = Math.floor((totalMinutes % (60 * 24)) / 60);
+  const minutes = totalMinutes % 60;
+
+  if (days > 0) {
+    return { label: `נותרו ${days} ימים ו-${hours} שעות`, isExpired: false };
+  }
+  if (hours > 0) {
+    return { label: `נותרו ${hours} שעות ו-${minutes} דקות`, isExpired: false };
+  }
+  return { label: `נותרו ${minutes} דקות`, isExpired: false };
+};
+
+const buildSummaryMessage = (event, summary) => {
+  if (!summary || summary.totalLogs === 0) {
+    return `לא נמצאו תיעודים עבור "${event.name}".`;
+  }
+
+  const lines = [`במהלך האירוע נרשמו ${summary.totalLogs} תיעודים.`];
+
+  if (summary.byTimeOfDay) {
+    const parts = Object.entries(summary.byTimeOfDay)
+      .map(([key, value]) => `${key}: ${value}`);
+    if (parts.length) {
+      lines.push(`חלוקה לפי זמנים: ${parts.join(', ')}`);
+    }
+  }
+
+  if (summary.firstLog) {
+    const firstDate = new Date(summary.firstLog.timestamp);
+    if (!Number.isNaN(firstDate.getTime())) {
+      lines.push(`תיעוד ראשון: ${firstDate.toLocaleString()}`);
+    }
+  }
+
+  if (summary.lastLog) {
+    const lastDate = new Date(summary.lastLog.timestamp);
+    if (!Number.isNaN(lastDate.getTime())) {
+      lines.push(`תיעוד אחרון: ${lastDate.toLocaleString()}`);
+    }
+  }
+
+  return lines.join('\n');
+};
+
 const HomeScreen = () => {
   const navigation = useNavigation();
 
@@ -122,16 +196,6 @@ const HomeScreen = () => {
   const clickTimeout = useRef(null);
   const hasEvents = events.length > 0;
 
-  const fetchEvents = useCallback(async () => {
-    try {
-      const data = await getEvents();
-      setEvents(Array.isArray(data) ? data : []);
-    } catch (error) {
-      console.error('שגיאה בטעינת אירועים:', error);
-      Alert.alert('שגיאה', 'לא ניתן לטעון את רשימת האירועים כרגע.');
-    }
-  }, []);
-
   const ensureDemoNotification = useCallback(async () => {
     const existing = await loadNotificationsFromStorage();
     if (existing.length > 0) return;
@@ -160,6 +224,46 @@ const HomeScreen = () => {
       setHasUnreadNotif(false);
     }
   }, [ensureDemoNotification]);
+
+  const processExpiredEvents = useCallback(
+    async (items) => {
+      const expired = items.filter((event) => isEventExpired(event) && !event.expirationNotified);
+      if (expired.length === 0) return;
+
+      for (const event of expired) {
+        try {
+          await markEventExpirationNotified(event._id);
+        } catch (error) {
+          console.error('שגיאה בעדכון התראה על תפוגה:', error);
+        }
+
+        try {
+          await appendNotificationToStorage({
+            title: `⏰ האירוע "${event.name}" הסתיים`,
+            body: 'האירוע הגיע לסיומו. בחר האם לאתחל אותו או להסיר מהרשימה.',
+            metadata: { eventId: event._id },
+          });
+        } catch (error) {
+          console.error('שגיאה ביצירת התראה עבור אירוע שפג תוקף:', error);
+        }
+      }
+
+      refreshUnread();
+    },
+    [refreshUnread, markEventExpirationNotified, appendNotificationToStorage],
+  );
+
+  const fetchEvents = useCallback(async () => {
+    try {
+      const data = await getEvents();
+      const normalized = Array.isArray(data) ? data : [];
+      setEvents(normalized);
+      await processExpiredEvents(normalized);
+    } catch (error) {
+      console.error('שגיאה בטעינת אירועים:', error);
+      Alert.alert('שגיאה', 'לא ניתן לטעון את רשימת האירועים כרגע.');
+    }
+  }, [processExpiredEvents]);
 
   const loadUser = useCallback(async () => {
     const storedUser = await AsyncStorage.getItem('user');
@@ -266,8 +370,121 @@ const HomeScreen = () => {
     }
   }, [navigation]);
 
+  const performRestart = useCallback(
+    async (event) => {
+      try {
+        await restartEventApi(event._id, { resetLogs: true });
+        Alert.alert('האירוע אופס', 'האירוע התחיל מחדש והמונה אופס.');
+        await fetchEvents();
+      } catch (error) {
+        console.error('שגיאה באיפוס האירוע:', error);
+        Alert.alert('שגיאה', 'לא ניתן לאפס את האירוע כעת.');
+      }
+    },
+    [fetchEvents],
+  );
+
+  const performArchive = useCallback(
+    async (event) => {
+      try {
+        await archiveEventApi(event._id);
+        Alert.alert('האירוע הוסר', 'האירוע הוסר מהרשימה אך התיעודים נשארו זמינים ביומן.');
+        await fetchEvents();
+      } catch (error) {
+        console.error('שגיאה בארכוב האירוע:', error);
+        Alert.alert('שגיאה', 'לא ניתן להסיר את האירוע כעת.');
+      }
+    },
+    [fetchEvents],
+  );
+
+  const handleRestartEvent = useCallback(
+    async (event) => {
+      try {
+        const { summary } = await getEventSummaryApi(event._id);
+        Alert.alert(
+          'איפוס האירוע',
+          `${buildSummaryMessage(event, summary)}\n\nהאם לאפס את האירוע ולהתחיל מחדש? התיעודים הנוכחיים ימחקו מהאירוע.`,
+          [
+            { text: 'ביטול', style: 'cancel' },
+            {
+              text: 'אפס והתחל מחדש',
+              onPress: () => {
+                performRestart(event);
+              },
+            },
+          ],
+          { cancelable: true },
+        );
+      } catch (error) {
+        console.error('שגיאה בהצגת סיכום לפני איפוס:', error);
+        Alert.alert('שגיאה', 'לא ניתן להציג את סיכום האירוע כעת.');
+      }
+    },
+    [performRestart],
+  );
+
+  const handleArchiveEvent = useCallback(
+    async (event) => {
+      try {
+        const { summary } = await getEventSummaryApi(event._id);
+        Alert.alert(
+          'סיכום האירוע',
+          `${buildSummaryMessage(event, summary)}\n\nלהסיר את האירוע מהרשימה?`,
+          [
+            { text: 'השאר', style: 'cancel' },
+            {
+              text: 'הסר מהרשימה',
+              style: 'destructive',
+              onPress: () => {
+                performArchive(event);
+              },
+            },
+          ],
+          { cancelable: true },
+        );
+      } catch (error) {
+        console.error('שגיאה בשליפת סיכום אירוע:', error);
+        Alert.alert('שגיאה', 'לא ניתן להציג את סיכום האירוע כעת.');
+      }
+    },
+    [performArchive],
+  );
+
+  const showExpiredEventAlert = useCallback(
+    (event) => {
+      const expiresAt = parseDateSafely(event.expiresAt);
+      const baseMessage = expiresAt
+        ? `"${event.name}" הסתיים ב-${expiresAt.toLocaleString()}.`
+        : `"${event.name}" הסתיים.`;
+
+      Alert.alert(
+        'האירוע הסתיים',
+        `${baseMessage}\n\nבחר פעולה להמשך:`,
+        [
+          {
+            text: '🔄 אתחל אירוע',
+            onPress: () => handleRestartEvent(event),
+          },
+          {
+            text: '📊 סיכום והסר',
+            onPress: () => handleArchiveEvent(event),
+          },
+          { text: 'סגור', style: 'cancel' },
+        ],
+        { cancelable: true },
+      );
+    },
+    [handleArchiveEvent, handleRestartEvent],
+  );
+
   const handleSingleClick = useCallback(
     async (event) => {
+      if (isEventExpired(event)) {
+        showExpiredEventAlert(event);
+        return;
+      }
+
       try {
         const updatedEvent = {
           ...event,
@@ -294,15 +511,25 @@ const HomeScreen = () => {
         await addLog(newLog);
         await fetchEvents();
       } catch (error) {
+        if (error?.response?.status === 409) {
+          showExpiredEventAlert(event);
+          await fetchEvents();
+          return;
+        }
         console.error('שגיאה בעדכון אירוע לאחר לחיצה:', error);
         Alert.alert('שגיאה', 'לא ניתן לעדכן את האירוע כרגע.');
       }
     },
-    [fetchEvents],
+    [fetchEvents, showExpiredEventAlert],
   );
 
   const handleDoubleClick = useCallback(
     async (event) => {
+      if (isEventExpired(event)) {
+        showExpiredEventAlert(event);
+        return;
+      }
+
       if ((event.totalColor || 0) <= 0) {
         Alert.alert('לא ניתן לבצע פעולה', 'מונה הלחיצות כבר עומד על אפס.');
         return;
@@ -330,15 +557,29 @@ const HomeScreen = () => {
         await updateEvent(event._id, updatedEvent);
         await fetchEvents();
       } catch (error) {
+        if (error?.response?.status === 409) {
+          showExpiredEventAlert(event);
+          await fetchEvents();
+          return;
+        }
         console.error('שגיאה במחיקת לחיצה אחרונה:', error);
         Alert.alert('שגיאה', 'לא ניתן למחוק את הלחיצה האחרונה כעת.');
       }
     },
-    [fetchEvents],
+    [fetchEvents, showExpiredEventAlert],
   );
 
   const handlePress = useCallback(
     (event) => {
+      if (isEventExpired(event)) {
+        if (clickTimeout.current) {
+          clearTimeout(clickTimeout.current);
+          clickTimeout.current = null;
+        }
+        showExpiredEventAlert(event);
+        return;
+      }
+
       if (clickTimeout.current) {
         clearTimeout(clickTimeout.current);
         clickTimeout.current = null;
@@ -355,9 +596,13 @@ const HomeScreen = () => {
 
   const handleLongPress = useCallback(
     (event) => {
+      if (isEventExpired(event)) {
+        showExpiredEventAlert(event);
+        return;
+      }
       navigation.navigate('AddDetailedLog', { eventId: event._id });
     },
-    [navigation],
+    [navigation, showExpiredEventAlert],
   );
 
   const handleOpenEditName = useCallback((event) => {
@@ -440,9 +685,22 @@ const HomeScreen = () => {
     [sortMode],
   );
 
+  const decoratedEvents = useMemo(
+    () =>
+      events.map((event) => {
+        const countdown = formatExpirationCountdown(event);
+        return {
+          ...event,
+          expirationLabel: countdown.label,
+          isExpired: countdown.isExpired,
+        };
+      }),
+    [events],
+  );
+
   const displayedEvents = useMemo(
-    () => sortEvents(filterEvents(events)),
-    [events, filterEvents, sortEvents],
+    () => sortEvents(filterEvents(decoratedEvents)),
+    [decoratedEvents, filterEvents, sortEvents],
   );
 
   const handleTogglePersonal = useCallback(() => {

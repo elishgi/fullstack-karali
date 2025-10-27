@@ -7,6 +7,10 @@ const {
     updateEvent,
     deleteEvent,
     deleteEventAndLogs,
+    markEventExpirationNotified,
+    getEventSummary,
+    restartEvent,
+    archiveEvent,
 } = require('../controllers/event.controller');
 
 const Event = require('../models/event.model');
@@ -19,6 +23,10 @@ router.post('/events', auth, createEvent);
 router.put('/events/:id', auth, updateEvent);
 router.delete('/events/:id', auth, deleteEvent);
 router.delete('/eventsWithLogs/:id', auth, deleteEventAndLogs);
+router.post('/events/:id/mark-expiration-notified', auth, markEventExpirationNotified);
+router.get('/events/:id/summary', auth, getEventSummary);
+router.post('/events/:id/restart', auth, restartEvent);
+router.post('/events/:id/archive', auth, archiveEvent);
 
 // גם שליפת שמות – רק של המשתמש המחובר
 router.get('/events/names', auth, async (req, res) => {
