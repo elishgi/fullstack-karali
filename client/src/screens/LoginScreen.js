@@ -11,22 +11,12 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
-import * as WebBrowser from 'expo-web-browser';
-import * as Google from 'expo-auth-session/providers/google';
-import api, { loginWithGoogle } from '../services/api';
-
-WebBrowser.maybeCompleteAuthSession();
+import api from '../services/api';
 
 export default function LoginScreen({ navigation }) {
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
-    clientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID,
-    androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
-    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
-    webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
-  });
 
   useEffect(() => {
     const checkLogin = async () => {
@@ -39,19 +29,6 @@ export default function LoginScreen({ navigation }) {
     checkLogin();
   }, []);
 
-  useEffect(() => {
-    const completeGoogleLogin = async () => {
-      if (response?.type === 'success') {
-        const idToken = response.params?.id_token;
-        if (idToken) {
-          await handleGoogleSignIn(idToken);
-        }
-      }
-    };
-
-    completeGoogleLogin();
-  }, [response]);
-
   const handleLogin = async () => {
     try {
       const res = await api.post('/api/users/login', { identifier, password });
@@ -61,26 +38,6 @@ export default function LoginScreen({ navigation }) {
     } catch (err) {
       Alert.alert('שגיאה', err.response?.data?.message || 'לא ניתן להתחבר. נסה שוב מאוחר יותר.');
     }
-  };
-
-  const handleGoogleSignIn = async (idToken) => {
-    try {
-      const res = await loginWithGoogle(idToken);
-      await AsyncStorage.setItem('token', res.token);
-      await AsyncStorage.setItem('user', JSON.stringify(res.user));
-      navigation.replace('Home');
-    } catch (err) {
-      console.error('Google login error:', err);
-      Alert.alert('שגיאה', err.response?.data?.message || 'לא ניתן להתחבר באמצעות Google כעת. נסה שוב מאוחר יותר.');
-    }
-  };
-
-  const startGoogleFlow = () => {
-    if (!request) {
-      Alert.alert('שגיאה', 'התחברות באמצעות Google אינה זמינה כרגע.');
-      return;
-    }
-    promptAsync();
   };
 
   return (
@@ -131,20 +88,8 @@ export default function LoginScreen({ navigation }) {
           <Text style={styles.buttonText}>התחבר</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[styles.button, styles.googleButton]}
-          onPress={startGoogleFlow}
-          disabled={!request}
-        >
-          <Text style={[styles.buttonText, styles.googleButtonText]}>התחבר עם Google</Text>
-        </TouchableOpacity>
-
         <Text style={styles.link} onPress={() => navigation.navigate('SignUp')}>
           חדש אצלנו ? הרשם
-        </Text>
-
-        <Text style={styles.secondaryLink} onPress={() => navigation.navigate('ForgotPassword')}>
-          שכחת סיסמה?
         </Text>
       </View>
     </ImageBackground>
@@ -218,31 +163,15 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     width: '100%',
     alignItems: 'center',
-    marginBottom: 12,
   },
   buttonText: {
     color: '#fff',
     fontWeight: 'bold',
     fontSize: 16,
   },
-  googleButton: {
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#4285F4',
-  },
-  googleButtonText: {
-    color: '#4285F4',
-  },
   link: {
     marginTop: 15,
     color: '#A68CF1',
-    textDecorationLine: 'underline',
-    writingDirection: 'rtl',
-    textAlign: 'center',
-  },
-  secondaryLink: {
-    marginTop: 10,
-    color: '#333',
     textDecorationLine: 'underline',
     writingDirection: 'rtl',
     textAlign: 'center',
