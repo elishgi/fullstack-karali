@@ -1,43 +1,42 @@
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 
-const optionalDependency = (moduleName, { onMissing } = {}) => {
-  try {
-    return require(moduleName);
-  } catch (error) {
-    const isModuleMissing =
-      error && error.code === 'MODULE_NOT_FOUND' && error.message.includes(`'${moduleName}'`);
+let nodemailer = null;
+try {
+  // eslint-disable-next-line global-require
+  nodemailer = require('nodemailer');
+} catch (error) {
+  const isModuleMissing =
+    error && error.code === 'MODULE_NOT_FOUND' && error.message.includes("'nodemailer'");
 
-    if (!isModuleMissing) {
-      throw error;
-    }
-
-    if (typeof onMissing === 'function') {
-      onMissing(error);
-    }
-
-    return null;
+  if (!isModuleMissing) {
+    throw error;
   }
-};
 
-const nodemailer = optionalDependency('nodemailer', {
-  onMissing(error) {
-    console.warn(
-      'Nodemailer module was not found. Password reset e-mails will only be logged locally.',
-      error && error.message ? `(${error.message})` : ''
-    );
-  },
-});
+  console.warn(
+    'Nodemailer module was not found. Password reset e-mails will only be logged locally.',
+    error && error.message ? `(${error.message})` : ''
+  );
+}
 
-const { OAuth2Client } =
-  optionalDependency('google-auth-library', {
-    onMissing(error) {
-      console.warn(
-        'google-auth-library module was not found. Google sign-in will be disabled until the dependency is installed.',
-        error && error.message ? `(${error.message})` : ''
-      );
-    },
-  }) || {};
+let OAuth2Client;
+try {
+  // eslint-disable-next-line global-require, import/no-extraneous-dependencies
+  ({ OAuth2Client } = require('google-auth-library'));
+} catch (error) {
+  const isModuleMissing =
+    error && error.code === 'MODULE_NOT_FOUND' && error.message.includes("'google-auth-library'");
+
+  if (!isModuleMissing) {
+    throw error;
+  }
+
+  console.warn(
+    'google-auth-library module was not found. Google sign-in will be disabled until the dependency is installed.',
+    error && error.message ? `(${error.message})` : ''
+  );
+  OAuth2Client = null;
+}
 const User = require('../models/user.model');
 const Event = require('../models/event.model');
 const Log = require('../models/log.model');
