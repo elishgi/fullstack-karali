@@ -9,7 +9,7 @@ import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { deleteAccount, resetAccount } from '../../services/api';
+import { deleteAccount, resetAccount, updateCurrentUser } from '../../services/api';
 
 
 // ----- Notifications state -----
@@ -137,21 +137,19 @@ function UserSidebar({ visible, onClose, user, onLogout, onUserUpdated, initialT
     const [saving, setSaving] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
 
-    // --- טיוטות לא מבוקרות (uncontrolled) כדי למנוע איבוד פוקוס ---
-    const draftUsernameRef = useRef('');
-    const draftNameRef = useRef('');
-    const draftLastNameRef = useRef('');
-    const draftEmailRef = useRef('');
-    const draftPhoneRef = useRef('');
-    const draftPasswordRef = useRef('');
-    const draftBioRef = useRef('');
+    const [drafts, setDrafts] = useState({
+        username: '',
+        name: '',
+        lastName: '',
+        email: '',
+        phone: '',
+        password: '',
+        bio: '',
+    });
 
-    // טריגר זעיר לרנדר של כפתורי "שמור"/"חזור" בלי להשפיע על ה-TextInput
-    const [draftTick, setDraftTick] = useState(0);
-    const bump = () => setDraftTick(t => t + 1);
-
-    const [editSessionKey, setEditSessionKey] = useState(0);
-    const restartEditSession = useCallback(() => setEditSessionKey(k => k + 1), []);
+    const updateDraft = useCallback((field, value) => {
+        setDrafts(prev => ({ ...prev, [field]: value }));
+    }, []);
 
     const getDisplayName = (userObj) => {
         if (!userObj) return 'משתמש';
@@ -184,27 +182,32 @@ function UserSidebar({ visible, onClose, user, onLogout, onUserUpdated, initialT
         };
         delete normalized.password;
 
+        const normalizedEmail = incoming.email == null ? '' : String(incoming.email).trim();
+        const normalizedPhone = incoming.phone == null ? '' : String(incoming.phone).trim();
+        const normalizedBio = incoming.bio == null ? '' : String(incoming.bio).trim();
+
         return {
             ...normalized,
-
+            email: normalizedEmail,
+            phone: normalizedPhone,
+            bio: normalizedBio,
         };
     };
+    const syncDraftsFrom = useCallback((userObj) => {
+        setDrafts({
+            username: userObj?.username || '',
+            name: userObj?.name || '',
+            lastName: userObj?.lastName || '',
+            email: userObj?.email || '',
+            phone: userObj?.phone == null ? '' : String(userObj.phone),
+            password: '',
+            bio: userObj?.bio == null ? '' : String(userObj.bio),
+        });
+    }, []);
 
-    const syncDraftsFrom = (userObj) => {
-        draftUsernameRef.current = userObj?.username || '';
-        draftNameRef.current = userObj?.name || '';
-        draftLastNameRef.current = userObj?.lastName || '';
-        draftEmailRef.current = userObj?.email || '';
-        draftPhoneRef.current = userObj?.phone || '';
-        draftPasswordRef.current = '';
-        draftBioRef.current = userObj?.bio || '';
-        restartEditSession();
-        setDraftTick(x => x + 1);
-    };
-
-    const resetDraftsToInitial = () => {
+    const resetDraftsToInitial = useCallback(() => {
         syncDraftsFrom(initialUser || {});
-    };
+    }, [initialUser, syncDraftsFrom]);
 
 
     // להציג את השם המעודכן מיד
@@ -280,11 +283,11 @@ function UserSidebar({ visible, onClose, user, onLogout, onUserUpdated, initialT
                 setActiveIndex(0);
                 innerX.setValue(0);
                 setIsEditing(false);
-                draftPasswordRef.current = '';
+                resetDraftsToInitial();
                 setConfirmOpen(false);
             }
         });
-    }, [visible]);
+    }, [visible, resetDraftsToInitial]);
 
     // הטענת תמונת פרופיל
     const loadProfileImage = useCallback(async () => {
@@ -417,7 +420,7 @@ function UserSidebar({ visible, onClose, user, onLogout, onUserUpdated, initialT
     const pointerEvents = visible ? 'auto' : 'none';
 
     // ----- MAIN PANEL -----
-    const MainPanel = () => (
+    const renderMainPanel = () => (
         <View style={styles.panelInner} collapsable={false} renderToHardwareTextureAndroid>
             <View style={styles.header}>
                 <Text style={styles.title}>פרופיל</Text>
@@ -489,13 +492,13 @@ function UserSidebar({ visible, onClose, user, onLogout, onUserUpdated, initialT
     const somethingChanged =
         !!initialUser &&
         (
-            trimStr(draftUsernameRef.current) !== trimStr(initialUser?.username) ||
-            trimStr(draftNameRef.current) !== trimStr(initialUser?.name) ||
-            trimStr(draftLastNameRef.current) !== trimStr(initialUser?.lastName) ||
-            trimStr(draftEmailRef.current) !== trimStr(initialUser?.email) ||
-            trimStr(draftPhoneRef.current) !== trimStr(initialUser?.phone) ||
-            trimStr(draftBioRef.current) !== trimStr(initialUser?.bio) ||
-            (draftPasswordRef.current || '').length > 0
+            trimStr(drafts.username) !== trimStr(initialUser?.username) ||
+            trimStr(drafts.name) !== trimStr(initialUser?.name) ||
+            trimStr(drafts.lastName) !== trimStr(initialUser?.lastName) ||
+            trimStr(drafts.email) !== trimStr(initialUser?.email) ||
+            trimStr(drafts.phone) !== trimStr(initialUser?.phone) ||
+            trimStr(drafts.bio) !== trimStr(initialUser?.bio) ||
+            trimStr(drafts.password || '') !== ''
         );
 
     const requestExitEditing = (afterExit) => {
@@ -529,6 +532,7 @@ function UserSidebar({ visible, onClose, user, onLogout, onUserUpdated, initialT
         const normalized = normalizeUser(newUser || {});
         await AsyncStorage.setItem('user', JSON.stringify(normalized));
         setSidebarName(getDisplayName(normalized));
+        setSidebarBio((normalized.bio || '').trim());
         onUserUpdated && onUserUpdated(normalized);
         return normalized;
     };
@@ -536,17 +540,15 @@ function UserSidebar({ visible, onClose, user, onLogout, onUserUpdated, initialT
     const handleSave = async () => {
         try {
             setSaving(true);
-            // TODO: חיבור API אמיתי (PUT /users/me). כרגע שמירה מקומית בלבד.
-            const username = trimStr(draftUsernameRef.current);
-            const name = trimStr(draftNameRef.current);
-            const lastName = trimStr(draftLastNameRef.current);
-            const email = trimStr(draftEmailRef.current);
-            const phone = trimStr(draftPhoneRef.current);
-            const bio = trimStr(draftBioRef.current);
-            const passwordToUpdate = trimStr(draftPasswordRef.current);
+            const username = trimStr(drafts.username);
+            const name = trimStr(drafts.name);
+            const lastName = trimStr(drafts.lastName);
+            const email = trimStr(drafts.email);
+            const phone = trimStr(drafts.phone);
+            const bio = trimStr(drafts.bio);
+            const passwordToUpdate = trimStr(drafts.password);
 
             const payload = {
-                ...(initialUser || {}),
                 username,
                 name,
                 lastName,
@@ -555,25 +557,22 @@ function UserSidebar({ visible, onClose, user, onLogout, onUserUpdated, initialT
                 bio,
             };
 
-            // סיסמה לא נשמרת מקומית. תשלח לשרת בלבד אם וכאשר.
             if (passwordToUpdate) {
                 payload.password = passwordToUpdate;
-            } else {
-                delete payload.password;
             }
 
-            const updated = await persistUserEverywhere(payload);
-            setSidebarBio((updated.bio || '').trim());
+            const updatedFromServer = await updateCurrentUser(payload);
+            const updated = await persistUserEverywhere(updatedFromServer);
 
             setInitialUser(updated);
             syncDraftsFrom(updated);
-            draftPasswordRef.current = '';
             setConfirmOpen(false);
             setIsEditing(false);
             Alert.alert('עודכן!', 'הפרטים נשמרו בהצלחה.');
         } catch (e) {
             console.log('save error', e?.message);
-            Alert.alert('שגיאה', 'לא הצלחתי לשמור את הפרטים.');
+            const serverMessage = e?.response?.data?.message;
+            Alert.alert('שגיאה', serverMessage || 'לא הצלחתי לשמור את הפרטים.');
         } finally {
             setSaving(false);
         }
@@ -587,7 +586,7 @@ function UserSidebar({ visible, onClose, user, onLogout, onUserUpdated, initialT
         requestExitEditing(() => setActiveIndex(0));
     };
 
-    const AccountPanel = () => {
+    const renderAccountPanel = () => {
         const displayUser = initialUser || {};
         const bioValue = trimStr(displayUser.bio);
 
@@ -603,7 +602,6 @@ function UserSidebar({ visible, onClose, user, onLogout, onUserUpdated, initialT
                                     style={styles.editBtn}
                                     onPress={() => {
                                         resetDraftsToInitial();
-                                        draftPasswordRef.current = '';
                                         setConfirmOpen(false);
                                         setIsEditing(true);
                                     }}
@@ -653,56 +651,51 @@ function UserSidebar({ visible, onClose, user, onLogout, onUserUpdated, initialT
                         >
                             <Field
                                 label="שם משתמש"
-                                value={draftUsernameRef.current}
-                                onChangeText={(t) => { draftUsernameRef.current = t; bump(); }}
+                                value={drafts.username}
+                                onChangeText={(t) => updateDraft('username', t)}
                                 placeholder="my_user_name"
                                 autoCapitalize="none"
                                 autoCorrect={false}
                             />
 
                             <Field
-                                key={`name-${editSessionKey}`}
                                 label="שם פרטי"
-                                defaultValue={draftNameRef.current}
-                                onChangeText={(t) => { draftNameRef.current = t; bump(); }}
+                                value={drafts.name}
+                                onChangeText={(t) => updateDraft('name', t)}
                                 placeholder="לדוגמה: יעל"
                                 autoCapitalize="words"
                                 autoCorrect={false}
                                 blurOnSubmit={false}
                             />
                             <Field
-                                key={`lastName-${editSessionKey}`}
                                 label="שם משפחה"
-                                defaultValue={draftLastNameRef.current}
-                                onChangeText={(t) => { draftLastNameRef.current = t; bump(); }}
+                                value={drafts.lastName}
+                                onChangeText={(t) => updateDraft('lastName', t)}
                                 placeholder="לדוגמה: לוי"
                                 autoCapitalize="words"
                                 autoCorrect={false}
                             />
                             <Field
-                                key={`email-${editSessionKey}`}
                                 label="אימייל"
-                                defaultValue={draftEmailRef.current}
-                                onChangeText={(t) => { draftEmailRef.current = t; bump(); }}
+                                value={drafts.email}
+                                onChangeText={(t) => updateDraft('email', t)}
                                 placeholder="example@mail.com"
                                 keyboardType="email-address"
                                 autoCapitalize="none"
                                 autoCorrect={false}
                             />
                             <Field
-                                key={`phone-${editSessionKey}`}
                                 label="מספר טלפון"
-                                defaultValue={draftPhoneRef.current}
-                                onChangeText={(t) => { draftPhoneRef.current = t; bump(); }}
+                                value={drafts.phone}
+                                onChangeText={(t) => updateDraft('phone', t)}
                                 placeholder="05X-XXXXXXX"
                                 keyboardType="phone-pad"
                                 autoCorrect={false}
                             />
                             <Field
-                                key={`password-${editSessionKey}`}
                                 label="סיסמה (להחלפה)"
-                                defaultValue={draftPasswordRef.current}
-                                onChangeText={(t) => { draftPasswordRef.current = t; bump(); }}
+                                value={drafts.password}
+                                onChangeText={(t) => updateDraft('password', t)}
                                 placeholder="השאר ריק אם לא משנים"
                                 secureTextEntry
                                 autoCapitalize="none"
@@ -713,12 +706,10 @@ function UserSidebar({ visible, onClose, user, onLogout, onUserUpdated, initialT
                                 <Text style={styles.label}>קצת עליך</Text>
                                 <View style={styles.inputWrapMultiline}>
                                     <TextInput
-                                        key={`bio-${editSessionKey}`}
-                                        defaultValue={draftBioRef.current}
+                                        value={drafts.bio}
                                         onChangeText={(t) => {
                                             if (t.length <= BIO_LIMIT) {
-                                                draftBioRef.current = t;
-                                                bump();
+                                                updateDraft('bio', t);
                                             }
                                         }}
                                         placeholder="ספר על עצמך בקצרה..."
@@ -730,7 +721,7 @@ function UserSidebar({ visible, onClose, user, onLogout, onUserUpdated, initialT
                                         autoCorrect={false}
                                     />
                                 </View>
-                                <Text style={styles.counter}>{(draftBioRef.current || '').length}/{BIO_LIMIT}</Text>
+                                <Text style={styles.counter}>{(drafts.bio || '').length}/{BIO_LIMIT}</Text>
                             </View>
 
                             <View style={styles.actionsRow}>
@@ -741,10 +732,10 @@ function UserSidebar({ visible, onClose, user, onLogout, onUserUpdated, initialT
                                 <TouchableOpacity
                                     style={[styles.saveBtn, (!somethingChanged || saving) && { opacity: 0.5 }]}
                                     onPress={() => {
-                                        const usernameVal = trimStr(draftUsernameRef.current);
-                                        const nameVal = trimStr(draftNameRef.current);
-                                        const lastVal = trimStr(draftLastNameRef.current);
-                                        const emailVal = trimStr(draftEmailRef.current);
+                                        const usernameVal = trimStr(drafts.username);
+                                        const nameVal = trimStr(drafts.name);
+                                        const lastVal = trimStr(drafts.lastName);
+                                        const emailVal = trimStr(drafts.email);
                                         if (!usernameVal) return Alert.alert('שגיאה', 'שם משתמש הוא שדה חובה.');
                                         if (!nameVal && !lastVal) return Alert.alert('שגיאה', 'יש למלא שם פרטי או שם משפחה.');
                                         if (!emailVal) return Alert.alert('שגיאה', 'אימייל הוא שדה חובה.');
@@ -788,105 +779,103 @@ function UserSidebar({ visible, onClose, user, onLogout, onUserUpdated, initialT
 
 
     // ----- OTHER PANELS -----
-    const FriendsPanel = () => {
-        return (
-            <View style={styles.panelInner}>
-                {/* כותרת */}
-                <View style={styles.subHeader}>
-                    <TouchableOpacity style={styles.backBtn} onPress={() => setActiveIndex(0)}>
-                        <Ionicons name="chevron-back" size={22} color={COLORS.text} />
-                        <Text style={styles.backText}>חזרה</Text>
-                    </TouchableOpacity>
-                    <Text style={styles.subTitle}>חברים</Text>
-                    <View style={{ width: 64 }} />
+    const renderFriendsPanel = () => (
+        <View style={styles.panelInner}>
+            {/* כותרת */}
+            <View style={styles.subHeader}>
+                <TouchableOpacity style={styles.backBtn} onPress={() => setActiveIndex(0)}>
+                    <Ionicons name="chevron-back" size={22} color={COLORS.text} />
+                    <Text style={styles.backText}>חזרה</Text>
+                </TouchableOpacity>
+                <Text style={styles.subTitle}>חברים</Text>
+                <View style={{ width: 64 }} />
+            </View>
+
+            {/* סטטיסטיקה */}
+            <View style={styles.statsRow}>
+                <View style={styles.statCard}>
+                    <Text style={styles.statNum}>{friends.length}</Text>
+                    <Text style={styles.statLabel}>חברים</Text>
                 </View>
-
-                {/* סטטיסטיקה */}
-                <View style={styles.statsRow}>
-                    <View style={styles.statCard}>
-                        <Text style={styles.statNum}>{friends.length}</Text>
-                        <Text style={styles.statLabel}>חברים</Text>
-                    </View>
-                    <View style={styles.statCard}>
-                        <Text style={styles.statNum}>{sharedEventsCount}</Text>
-                        <Text style={styles.statLabel}>אירועים משותפים</Text>
-                    </View>
-                </View>
-
-                {/* חיפוש חבר קיים */}
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>חיפוש חברים קיימים</Text>
-                    <View style={styles.searchRow}>
-                        <Ionicons name="search-outline" size={18} color="#888" style={{ marginHorizontal: 6 }} />
-                        <TextInput
-                            value={searchExisting}
-                            onChangeText={setSearchExisting}
-                            placeholder="חפש לפי שם או מזהה"
-                            style={styles.searchInput}
-                            placeholderTextColor="#999"
-                        />
-                    </View>
-                </View>
-
-                {/* רשימת חברים */}
-                {filteredFriends.length === 0 ? (
-                    <View style={styles.placeholderBox}>
-                        <Text style={styles.placeholderText}>לא נמצאו חברים תואמים.</Text>
-                    </View>
-                ) : (
-                    <View style={{ marginBottom: 10 }}>
-                        {filteredFriends.map(f => (
-                            <View key={f.id} style={styles.friendItem}>
-                                <View style={styles.friendHeader}>
-                                    <Text style={styles.friendName}>{f.name}</Text>
-                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                                        {/* כוכב (מועדפים) פר-חבר */}
-                                        <Ionicons
-                                            name={f.starred ? 'star' : 'star-outline'}
-                                            size={18}
-                                            color={f.starred ? '#DAA520' : '#bbb'}
-                                            onPress={async () => {
-                                                const next = friends.map(x => x.id === f.id ? { ...x, starred: !x.starred } : x);
-                                                await persistFriends(next);
-                                            }}
-                                        />
-                                        {/* סטטוס */}
-                                        <Text style={[styles.friendStatus, f.status === 'accepted' ? styles.statusOk : styles.statusPending]}>
-                                            {f.status === 'accepted' ? 'מחובר' : 'ממתין'}
-                                        </Text>
-                                    </View>
-                                </View>
-                                <Text style={styles.friendSince}>מאז: {new Date(f.since).toLocaleDateString()}</Text>
-                            </View>
-                        ))}
-                    </View>
-                )}
-
-                {/* הוספה לפי ID (יסודות) */}
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>מצא/הוסף חבר לפי מזהה (ID)</Text>
-                    <View style={styles.findIdRow}>
-                        <TextInput
-                            value={searchById}
-                            onChangeText={setSearchById}
-                            placeholder="הקלד מזהה משתמש (ID)"
-                            style={styles.findIdInput}
-                            placeholderTextColor="#999"
-                            autoCapitalize="none"
-                        />
-                        <TouchableOpacity style={styles.findIdBtn} onPress={handleFindById} activeOpacity={0.85}>
-                            <Ionicons name="person-add-outline" size={18} color="#111" />
-                            <Text style={styles.findIdBtnText}>חפש</Text>
-                        </TouchableOpacity>
-                    </View>
-                    <Text style={styles.noteText}>בשלב הבא נוסיף בקשת צירוף ואימות הדדי.</Text>
+                <View style={styles.statCard}>
+                    <Text style={styles.statNum}>{sharedEventsCount}</Text>
+                    <Text style={styles.statLabel}>אירועים משותפים</Text>
                 </View>
             </View>
-        );
-    };
+
+            {/* חיפוש חבר קיים */}
+            <View style={styles.section}>
+                <Text style={styles.sectionTitle}>חיפוש חברים קיימים</Text>
+                <View style={styles.searchRow}>
+                    <Ionicons name="search-outline" size={18} color="#888" style={{ marginHorizontal: 6 }} />
+                    <TextInput
+                        value={searchExisting}
+                        onChangeText={setSearchExisting}
+                        placeholder="חפש לפי שם או מזהה"
+                        style={styles.searchInput}
+                        placeholderTextColor="#999"
+                    />
+                </View>
+            </View>
+
+            {/* רשימת חברים */}
+            {filteredFriends.length === 0 ? (
+                <View style={styles.placeholderBox}>
+                    <Text style={styles.placeholderText}>לא נמצאו חברים תואמים.</Text>
+                </View>
+            ) : (
+                <View style={{ marginBottom: 10 }}>
+                    {filteredFriends.map(f => (
+                        <View key={f.id} style={styles.friendItem}>
+                            <View style={styles.friendHeader}>
+                                <Text style={styles.friendName}>{f.name}</Text>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                                    {/* כוכב (מועדפים) פר-חבר */}
+                                    <Ionicons
+                                        name={f.starred ? 'star' : 'star-outline'}
+                                        size={18}
+                                        color={f.starred ? '#DAA520' : '#bbb'}
+                                        onPress={async () => {
+                                            const next = friends.map(x => x.id === f.id ? { ...x, starred: !x.starred } : x);
+                                            await persistFriends(next);
+                                        }}
+                                    />
+                                    {/* סטטוס */}
+                                    <Text style={[styles.friendStatus, f.status === 'accepted' ? styles.statusOk : styles.statusPending]}>
+                                        {f.status === 'accepted' ? 'מחובר' : 'ממתין'}
+                                    </Text>
+                                </View>
+                            </View>
+                            <Text style={styles.friendSince}>מאז: {new Date(f.since).toLocaleDateString()}</Text>
+                        </View>
+                    ))}
+                </View>
+            )}
+
+            {/* הוספה לפי ID (יסודות) */}
+            <View style={styles.section}>
+                <Text style={styles.sectionTitle}>מצא/הוסף חבר לפי מזהה (ID)</Text>
+                <View style={styles.findIdRow}>
+                    <TextInput
+                        value={searchById}
+                        onChangeText={setSearchById}
+                        placeholder="הקלד מזהה משתמש (ID)"
+                        style={styles.findIdInput}
+                        placeholderTextColor="#999"
+                        autoCapitalize="none"
+                    />
+                    <TouchableOpacity style={styles.findIdBtn} onPress={handleFindById} activeOpacity={0.85}>
+                        <Ionicons name="person-add-outline" size={18} color="#111" />
+                        <Text style={styles.findIdBtnText}>חפש</Text>
+                    </TouchableOpacity>
+                </View>
+                <Text style={styles.noteText}>בשלב הבא נוסיף בקשת צירוף ואימות הדדי.</Text>
+            </View>
+        </View>
+    );
 
 
-    const NotificationsPanel = () => {
+    const renderNotificationsPanel = () => {
         const markAllRead = async () => {
             if (unreadCount === 0) return; // מגן
             const next = notifications.map(n => ({ ...n, read: true }));
@@ -1003,7 +992,7 @@ function UserSidebar({ visible, onClose, user, onLogout, onUserUpdated, initialT
 
 
 
-    const SettingsPanel = () => {
+    const renderSettingsPanel = () => {
         const performDeleteAccount = async () => {
             try {
                 setAccountActionLoading(true);
@@ -1177,11 +1166,11 @@ function UserSidebar({ visible, onClose, user, onLogout, onUserUpdated, initialT
                     renderToHardwareTextureAndroid
                     needsOffscreenAlphaCompositing
                 >
-                    <View style={{ width: PANEL_WIDTH }}><MainPanel /></View>
-                    <View key="account" style={{ width: PANEL_WIDTH }}><AccountPanel /></View>
-                    <View style={{ width: PANEL_WIDTH }}><FriendsPanel /></View>
-                    <View style={{ width: PANEL_WIDTH }}><NotificationsPanel /></View>
-                    <View style={{ width: PANEL_WIDTH }}><SettingsPanel /></View>
+                    <View style={{ width: PANEL_WIDTH }}>{renderMainPanel()}</View>
+                    <View key="account" style={{ width: PANEL_WIDTH }}>{renderAccountPanel()}</View>
+                    <View style={{ width: PANEL_WIDTH }}>{renderFriendsPanel()}</View>
+                    <View style={{ width: PANEL_WIDTH }}>{renderNotificationsPanel()}</View>
+                    <View style={{ width: PANEL_WIDTH }}>{renderSettingsPanel()}</View>
                 </Animated.View>
             </SafeAreaView>
 

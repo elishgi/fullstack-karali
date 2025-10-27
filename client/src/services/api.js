@@ -26,5 +26,17 @@ export const addLog = async (newLog) => (await api.post('/api/logs', newLog)).da
 export const deleteLog = async (logId) => (await api.delete(`/api/logs/${logId}`)).data;
 export const deleteAccount = async () => (await api.delete('/api/users/account')).data;
 export const resetAccount = async () => (await api.post('/api/users/account/reset')).data;
+export const updateCurrentUser = async (updates) => {
+  try {
+    const response = await api.put('/api/users/me', updates);
+    return response.data.user;
+  } catch (error) {
+    if (error?.response?.status === 404) {
+      const fallbackResponse = await api.put('/api/users/account', updates);
+      return fallbackResponse.data.user;
+    }
+    throw error;
+  }
+};
 
 export default api;

@@ -48,7 +48,7 @@ export default function SignUpScreen({ navigation }) {
       const res = await api.post('/api/users/signup', { username, email, password });
 
       try {
-        await AsyncStorage.setItem('user', JSON.stringify({ username }));
+        await AsyncStorage.setItem('user', JSON.stringify(res.data.user));
       } catch (storageError) {
         console.warn('⚠️ שגיאה ב-AsyncStorage:', storageError);
       }
