@@ -3,14 +3,13 @@ const bcrypt = require('bcrypt');
 
 // סכמת המשתמש המלאה
 const userSchema = new mongoose.Schema({
-  username: { type: String, required: true, unique: true, trim: true },
-  name: { type: String, required: false, trim: true, default: '' },
-  lastName: { type: String, required: false, trim: true, default: '' },
-  email: { type: String, required: true, unique: true, trim: true, lowercase: true },
+  username: { type: String, required: true, unique: true },
+  name: { type: String, required: false },
+  lastName: { type: String, required: false },
+  email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
-  phone: { type: String, required: false, trim: true, default: '' },
-  bio: { type: String, required: false, trim: true, default: '', maxlength: 180 },
-}, { timestamps: true });
+  phone: { type: Number, required: false },
+});
 
 
 // הצפנת סיסמה לפני שמירה

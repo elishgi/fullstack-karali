@@ -9,7 +9,7 @@ import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { deleteAccount, resetAccount, updateCurrentUser } from '../../services/api';
+import { deleteAccount, resetAccount } from '../../services/api';
 
 
 // ----- Notifications state -----
@@ -137,19 +137,21 @@ function UserSidebar({ visible, onClose, user, onLogout, onUserUpdated, initialT
     const [saving, setSaving] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
 
-    const [drafts, setDrafts] = useState({
-        username: '',
-        name: '',
-        lastName: '',
-        email: '',
-        phone: '',
-        password: '',
-        bio: '',
-    });
+    // --- טיוטות לא מבוקרות (uncontrolled) כדי למנוע איבוד פוקוס ---
+    const draftUsernameRef = useRef('');
+    const draftNameRef = useRef('');
+    const draftLastNameRef = useRef('');
+    const draftEmailRef = useRef('');
+    const draftPhoneRef = useRef('');
+    const draftPasswordRef = useRef('');
+    const draftBioRef = useRef('');
 
-    const updateDraft = useCallback((field, value) => {
-        setDrafts(prev => ({ ...prev, [field]: value }));
-    }, []);
+    // טריגר זעיר לרנדר של כפתורי "שמור"/"חזור" בלי להשפיע על ה-TextInput
+    const [draftTick, setDraftTick] = useState(0);
+    const bump = () => setDraftTick(t => t + 1);
+
+    const [editSessionKey, setEditSessionKey] = useState(0);
+    const restartEditSession = useCallback(() => setEditSessionKey(k => k + 1), []);
 
     const getDisplayName = (userObj) => {
         if (!userObj) return 'משתמש';
@@ -182,32 +184,27 @@ function UserSidebar({ visible, onClose, user, onLogout, onUserUpdated, initialT
         };
         delete normalized.password;
 
-        const normalizedEmail = incoming.email == null ? '' : String(incoming.email).trim();
-        const normalizedPhone = incoming.phone == null ? '' : String(incoming.phone).trim();
-        const normalizedBio = incoming.bio == null ? '' : String(incoming.bio).trim();
-
         return {
             ...normalized,
-            email: normalizedEmail,
-            phone: normalizedPhone,
-            bio: normalizedBio,
+
         };
     };
-    const syncDraftsFrom = useCallback((userObj) => {
-        setDrafts({
-            username: userObj?.username || '',
-            name: userObj?.name || '',
-            lastName: userObj?.lastName || '',
-            email: userObj?.email || '',
-            phone: userObj?.phone == null ? '' : String(userObj.phone),
-            password: '',
-            bio: userObj?.bio == null ? '' : String(userObj.bio),
-        });
-    }, []);
 
-    const resetDraftsToInitial = useCallback(() => {
+    const syncDraftsFrom = (userObj) => {
+        draftUsernameRef.current = userObj?.username || '';
+        draftNameRef.current = userObj?.name || '';
+        draftLastNameRef.current = userObj?.lastName || '';
+        draftEmailRef.current = userObj?.email || '';
+        draftPhoneRef.current = userObj?.phone || '';
+        draftPasswordRef.current = '';
+        draftBioRef.current = userObj?.bio || '';
+        restartEditSession();
+        setDraftTick(x => x + 1);
+    };
+
+    const resetDraftsToInitial = () => {
         syncDraftsFrom(initialUser || {});
-    }, [initialUser, syncDraftsFrom]);
+    };
 
 
     // להציג את השם המעודכן מיד
@@ -283,11 +280,11 @@ function UserSidebar({ visible, onClose, user, onLogout, onUserUpdated, initialT
                 setActiveIndex(0);
                 innerX.setValue(0);
                 setIsEditing(false);
-                resetDraftsToInitial();
+                draftPasswordRef.current = '';
                 setConfirmOpen(false);
             }
         });
-    }, [visible, resetDraftsToInitial]);
+    }, [visible]);
 
     // הטענת תמונת פרופיל
     const loadProfileImage = useCallback(async () => {
@@ -492,13 +489,13 @@ function UserSidebar({ visible, onClose, user, onLogout, onUserUpdated, initialT
     const somethingChanged =
         !!initialUser &&
         (
-            trimStr(drafts.username) !== trimStr(initialUser?.username) ||
-            trimStr(drafts.name) !== trimStr(initialUser?.name) ||
-            trimStr(drafts.lastName) !== trimStr(initialUser?.lastName) ||
-            trimStr(drafts.email) !== trimStr(initialUser?.email) ||
-            trimStr(drafts.phone) !== trimStr(initialUser?.phone) ||
-            trimStr(drafts.bio) !== trimStr(initialUser?.bio) ||
-            trimStr(drafts.password || '') !== ''
+            trimStr(draftUsernameRef.current) !== trimStr(initialUser?.username) ||
+            trimStr(draftNameRef.current) !== trimStr(initialUser?.name) ||
+            trimStr(draftLastNameRef.current) !== trimStr(initialUser?.lastName) ||
+            trimStr(draftEmailRef.current) !== trimStr(initialUser?.email) ||
+            trimStr(draftPhoneRef.current) !== trimStr(initialUser?.phone) ||
+            trimStr(draftBioRef.current) !== trimStr(initialUser?.bio) ||
+            (draftPasswordRef.current || '').length > 0
         );
 
     const requestExitEditing = (afterExit) => {
@@ -532,7 +529,6 @@ function UserSidebar({ visible, onClose, user, onLogout, onUserUpdated, initialT
         const normalized = normalizeUser(newUser || {});
         await AsyncStorage.setItem('user', JSON.stringify(normalized));
         setSidebarName(getDisplayName(normalized));
-        setSidebarBio((normalized.bio || '').trim());
         onUserUpdated && onUserUpdated(normalized);
         return normalized;
     };
@@ -540,15 +536,17 @@ function UserSidebar({ visible, onClose, user, onLogout, onUserUpdated, initialT
     const handleSave = async () => {
         try {
             setSaving(true);
-            const username = trimStr(drafts.username);
-            const name = trimStr(drafts.name);
-            const lastName = trimStr(drafts.lastName);
-            const email = trimStr(drafts.email);
-            const phone = trimStr(drafts.phone);
-            const bio = trimStr(drafts.bio);
-            const passwordToUpdate = trimStr(drafts.password);
+            // TODO: חיבור API אמיתי (PUT /users/me). כרגע שמירה מקומית בלבד.
+            const username = trimStr(draftUsernameRef.current);
+            const name = trimStr(draftNameRef.current);
+            const lastName = trimStr(draftLastNameRef.current);
+            const email = trimStr(draftEmailRef.current);
+            const phone = trimStr(draftPhoneRef.current);
+            const bio = trimStr(draftBioRef.current);
+            const passwordToUpdate = trimStr(draftPasswordRef.current);
 
             const payload = {
+                ...(initialUser || {}),
                 username,
                 name,
                 lastName,
@@ -557,22 +555,25 @@ function UserSidebar({ visible, onClose, user, onLogout, onUserUpdated, initialT
                 bio,
             };
 
+            // סיסמה לא נשמרת מקומית. תשלח לשרת בלבד אם וכאשר.
             if (passwordToUpdate) {
                 payload.password = passwordToUpdate;
+            } else {
+                delete payload.password;
             }
 
-            const updatedFromServer = await updateCurrentUser(payload);
-            const updated = await persistUserEverywhere(updatedFromServer);
+            const updated = await persistUserEverywhere(payload);
+            setSidebarBio((updated.bio || '').trim());
 
             setInitialUser(updated);
             syncDraftsFrom(updated);
+            draftPasswordRef.current = '';
             setConfirmOpen(false);
             setIsEditing(false);
             Alert.alert('עודכן!', 'הפרטים נשמרו בהצלחה.');
         } catch (e) {
             console.log('save error', e?.message);
-            const serverMessage = e?.response?.data?.message;
-            Alert.alert('שגיאה', serverMessage || 'לא הצלחתי לשמור את הפרטים.');
+            Alert.alert('שגיאה', 'לא הצלחתי לשמור את הפרטים.');
         } finally {
             setSaving(false);
         }
@@ -602,6 +603,7 @@ function UserSidebar({ visible, onClose, user, onLogout, onUserUpdated, initialT
                                     style={styles.editBtn}
                                     onPress={() => {
                                         resetDraftsToInitial();
+                                        draftPasswordRef.current = '';
                                         setConfirmOpen(false);
                                         setIsEditing(true);
                                     }}
@@ -651,51 +653,56 @@ function UserSidebar({ visible, onClose, user, onLogout, onUserUpdated, initialT
                         >
                             <Field
                                 label="שם משתמש"
-                                value={drafts.username}
-                                onChangeText={(t) => updateDraft('username', t)}
+                                value={draftUsernameRef.current}
+                                onChangeText={(t) => { draftUsernameRef.current = t; bump(); }}
                                 placeholder="my_user_name"
                                 autoCapitalize="none"
                                 autoCorrect={false}
                             />
 
                             <Field
+                                key={`name-${editSessionKey}`}
                                 label="שם פרטי"
-                                value={drafts.name}
-                                onChangeText={(t) => updateDraft('name', t)}
+                                defaultValue={draftNameRef.current}
+                                onChangeText={(t) => { draftNameRef.current = t; bump(); }}
                                 placeholder="לדוגמה: יעל"
                                 autoCapitalize="words"
                                 autoCorrect={false}
                                 blurOnSubmit={false}
                             />
                             <Field
+                                key={`lastName-${editSessionKey}`}
                                 label="שם משפחה"
-                                value={drafts.lastName}
-                                onChangeText={(t) => updateDraft('lastName', t)}
+                                defaultValue={draftLastNameRef.current}
+                                onChangeText={(t) => { draftLastNameRef.current = t; bump(); }}
                                 placeholder="לדוגמה: לוי"
                                 autoCapitalize="words"
                                 autoCorrect={false}
                             />
                             <Field
+                                key={`email-${editSessionKey}`}
                                 label="אימייל"
-                                value={drafts.email}
-                                onChangeText={(t) => updateDraft('email', t)}
+                                defaultValue={draftEmailRef.current}
+                                onChangeText={(t) => { draftEmailRef.current = t; bump(); }}
                                 placeholder="example@mail.com"
                                 keyboardType="email-address"
                                 autoCapitalize="none"
                                 autoCorrect={false}
                             />
                             <Field
+                                key={`phone-${editSessionKey}`}
                                 label="מספר טלפון"
-                                value={drafts.phone}
-                                onChangeText={(t) => updateDraft('phone', t)}
+                                defaultValue={draftPhoneRef.current}
+                                onChangeText={(t) => { draftPhoneRef.current = t; bump(); }}
                                 placeholder="05X-XXXXXXX"
                                 keyboardType="phone-pad"
                                 autoCorrect={false}
                             />
                             <Field
+                                key={`password-${editSessionKey}`}
                                 label="סיסמה (להחלפה)"
-                                value={drafts.password}
-                                onChangeText={(t) => updateDraft('password', t)}
+                                defaultValue={draftPasswordRef.current}
+                                onChangeText={(t) => { draftPasswordRef.current = t; bump(); }}
                                 placeholder="השאר ריק אם לא משנים"
                                 secureTextEntry
                                 autoCapitalize="none"
@@ -706,10 +713,12 @@ function UserSidebar({ visible, onClose, user, onLogout, onUserUpdated, initialT
                                 <Text style={styles.label}>קצת עליך</Text>
                                 <View style={styles.inputWrapMultiline}>
                                     <TextInput
-                                        value={drafts.bio}
+                                        key={`bio-${editSessionKey}`}
+                                        defaultValue={draftBioRef.current}
                                         onChangeText={(t) => {
                                             if (t.length <= BIO_LIMIT) {
-                                                updateDraft('bio', t);
+                                                draftBioRef.current = t;
+                                                bump();
                                             }
                                         }}
                                         placeholder="ספר על עצמך בקצרה..."
@@ -721,7 +730,7 @@ function UserSidebar({ visible, onClose, user, onLogout, onUserUpdated, initialT
                                         autoCorrect={false}
                                     />
                                 </View>
-                                <Text style={styles.counter}>{(drafts.bio || '').length}/{BIO_LIMIT}</Text>
+                                <Text style={styles.counter}>{(draftBioRef.current || '').length}/{BIO_LIMIT}</Text>
                             </View>
 
                             <View style={styles.actionsRow}>
@@ -732,10 +741,10 @@ function UserSidebar({ visible, onClose, user, onLogout, onUserUpdated, initialT
                                 <TouchableOpacity
                                     style={[styles.saveBtn, (!somethingChanged || saving) && { opacity: 0.5 }]}
                                     onPress={() => {
-                                        const usernameVal = trimStr(drafts.username);
-                                        const nameVal = trimStr(drafts.name);
-                                        const lastVal = trimStr(drafts.lastName);
-                                        const emailVal = trimStr(drafts.email);
+                                        const usernameVal = trimStr(draftUsernameRef.current);
+                                        const nameVal = trimStr(draftNameRef.current);
+                                        const lastVal = trimStr(draftLastNameRef.current);
+                                        const emailVal = trimStr(draftEmailRef.current);
                                         if (!usernameVal) return Alert.alert('שגיאה', 'שם משתמש הוא שדה חובה.');
                                         if (!nameVal && !lastVal) return Alert.alert('שגיאה', 'יש למלא שם פרטי או שם משפחה.');
                                         if (!emailVal) return Alert.alert('שגיאה', 'אימייל הוא שדה חובה.');
