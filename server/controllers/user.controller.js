@@ -4,6 +4,19 @@ const Event = require('../models/event.model');
 const Log = require('../models/log.model');
 const JWT_SECRET = process.env.JWT_SECRET || 'supersecret';
 
+const sanitizeUser = (userDoc) => {
+  if (!userDoc) return null;
+  return {
+    _id: userDoc._id,
+    username: userDoc.username,
+    email: userDoc.email,
+    name: userDoc.name || '',
+    lastName: userDoc.lastName || '',
+    phone: userDoc.phone || '',
+    bio: userDoc.bio || '',
+  };
+};
+
 
 const signup = async (req, res) => {
   try {
@@ -33,7 +46,7 @@ const signup = async (req, res) => {
     const token = jwt.sign({ _id: user._id }, JWT_SECRET);
     return res.status(201).json({
       token,
-      user: { _id: user._id, username: user.username, email: user.email },
+      user: sanitizeUser(user),
     });
   } catch (err) {
     console.error('Signup error:', err);
@@ -84,7 +97,7 @@ const login = async (req, res) => {
     const token = jwt.sign({ _id: user._id }, JWT_SECRET);
     return res.json({
       token,
-      user: { _id: user._id, username: user.username, email: user.email },
+      user: sanitizeUser(user),
     });
   } catch (err) {
     return res.status(500).json({ message: 'שגיאה בהתחברות' });
@@ -139,5 +152,96 @@ const resetAccount = async (req, res) => {
   }
 };
 
+const updateAccount = async (req, res) => {
+  try {
+    const userId = ensureUserId(req, res);
+    if (!userId) return;
 
-module.exports = { signup, login, deleteAccount, resetAccount };
+    const {
+      username,
+      name,
+      lastName,
+      email,
+      phone,
+      bio,
+      password,
+    } = req.body || {};
+
+    const updates = {};
+
+    if (username !== undefined) {
+      const trimmed = (username || '').trim();
+      if (!trimmed) {
+        return res.status(400).json({ message: 'שם משתמש הוא שדה חובה' });
+      }
+      const existing = await User.findOne({ username: trimmed, _id: { $ne: userId } });
+      if (existing) {
+        return res.status(400).json({ message: 'שם המשתמש כבר בשימוש' });
+      }
+      updates.username = trimmed;
+    }
+
+    if (email !== undefined) {
+      const trimmedEmail = (email || '').trim().toLowerCase();
+      if (!trimmedEmail) {
+        return res.status(400).json({ message: 'אימייל הוא שדה חובה' });
+      }
+      const existingEmail = await User.findOne({ email: trimmedEmail, _id: { $ne: userId } });
+      if (existingEmail) {
+        return res.status(400).json({ message: 'אימייל זה כבר בשימוש' });
+      }
+      updates.email = trimmedEmail;
+    }
+
+    if (name !== undefined) {
+      updates.name = (name || '').trim();
+    }
+
+    if (lastName !== undefined) {
+      updates.lastName = (lastName || '').trim();
+    }
+
+    if (phone !== undefined) {
+      const trimmedPhone = (phone || '').trim();
+      updates.phone = trimmedPhone;
+    }
+
+    if (bio !== undefined) {
+      const trimmedBio = (bio || '').trim();
+      if (trimmedBio.length > 180) {
+        return res.status(400).json({ message: 'הביוגרפיה חורגת מהמגבלה' });
+      }
+      updates.bio = trimmedBio;
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'המשתמש לא נמצא' });
+    }
+
+    Object.assign(user, updates);
+
+    const newPassword = (password || '').trim();
+    if (newPassword) {
+      user.password = newPassword;
+    }
+
+    await user.save();
+
+    return res.json({ user: sanitizeUser(user) });
+  } catch (err) {
+    console.error('Update account error:', err);
+    if (err.code === 11000) {
+      if (err.keyPattern?.username) {
+        return res.status(400).json({ message: 'שם המשתמש כבר בשימוש' });
+      }
+      if (err.keyPattern?.email) {
+        return res.status(400).json({ message: 'אימייל זה כבר בשימוש' });
+      }
+    }
+    return res.status(500).json({ message: 'שגיאה בעת עדכון החשבון' });
+  }
+};
+
+
+module.exports = { signup, login, deleteAccount, resetAccount, updateAccount };
