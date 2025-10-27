@@ -89,6 +89,10 @@ const login = async (req, res) => {
       return res.status(401).json({ message: 'משתמש לא נמצא' });
     }
 
+    if (applyLegacyDefaults(user)) {
+      await user.save();
+    }
+
     const isMatch = await user.comparePassword(password);
     if (!isMatch) {
       return res.status(401).json({ message: 'פרטי התחברות שגויים' });
@@ -105,12 +109,30 @@ const login = async (req, res) => {
 };
 
 const ensureUserId = (req, res) => {
-  const userId = req.user?._id;
+  const userId = req.userId || req.user?._id || req.user?.id || req.user?.userId;
   if (!userId) {
     res.status(401).json({ message: 'משתמש לא מזוהה' });
     return null;
   }
   return userId;
+};
+
+const applyLegacyDefaults = (userDoc) => {
+  if (!userDoc) return false;
+  let changed = false;
+  const ensure = (field, value = '') => {
+    if (userDoc[field] === undefined) {
+      userDoc[field] = value;
+      changed = true;
+    }
+  };
+
+  ensure('name');
+  ensure('lastName');
+  ensure('phone');
+  ensure('bio');
+
+  return changed;
 };
 
 const deleteAccount = async (req, res) => {
@@ -220,6 +242,8 @@ const updateAccount = async (req, res) => {
     }
 
     Object.assign(user, updates);
+
+     applyLegacyDefaults(user);
 
     const newPassword = (password || '').trim();
     if (newPassword) {
