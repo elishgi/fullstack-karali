@@ -14,10 +14,18 @@ const getAllEvents = async (req, res) => {
 
 const createEvent = async (req, res) => {
   try {
-    const { name, color } = req.body;
+    const {
+      name,
+      color,
+      shared = false,
+      participants = [],
+    } = req.body;
+
     const newEvent = new Event({
       name,
       color,
+      shared: Boolean(shared),
+      participants: Array.isArray(participants) ? participants : [],
       userId: req.user._id
     });
 
@@ -31,11 +39,25 @@ const createEvent = async (req, res) => {
 const updateEvent = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, color, totalColor } = req.body;
+    const { name, color, totalColor, shared, participants } = req.body;
+
+    const updates = {
+      name,
+      color,
+      totalColor,
+    };
+
+    if (typeof shared === 'boolean') {
+      updates.shared = shared;
+    }
+
+    if (participants !== undefined) {
+      updates.participants = Array.isArray(participants) ? participants : [];
+    }
 
     const updatedEvent = await Event.findByIdAndUpdate(
       id,
-      { name, color, totalColor },
+      updates,
       { new: true }
     );
 
