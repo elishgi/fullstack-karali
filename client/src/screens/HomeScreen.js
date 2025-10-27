@@ -67,6 +67,28 @@ export default function HomeScreen() {
 
   const hasEvents = (events?.length ?? 0) > 0;
 
+  const composeUserDisplayName = (obj) => {
+    if (!obj) return 'ללא שם';
+    const rawName = typeof obj.name === 'string' ? obj.name.trim() : '';
+    const rawLast = typeof obj.lastName === 'string' ? obj.lastName.trim() : '';
+    const username = typeof obj.username === 'string' ? obj.username.trim() : '';
+
+    let firstName = rawName;
+    let lastName = rawLast;
+
+    if (!lastName && rawName.includes(' ')) {
+      const parts = rawName.split(' ').filter(Boolean);
+      firstName = parts.shift() || '';
+      lastName = parts.join(' ');
+    }
+
+    const combined = `${firstName} ${lastName}`.trim();
+    if (combined) return combined;
+    if (rawName) return rawName;
+    if (username) return username;
+    return 'ללא שם';
+  };
+
   useEffect(() => {
     const loadUser = async () => {
       const userData = await AsyncStorage.getItem('user');
@@ -80,8 +102,8 @@ export default function HomeScreen() {
       try {
         const parsed = JSON.parse(userData);
         // אפשר שיגיע מה-Login (אובייקט מלא) או מה-SignUp (שם בלבד)
-        const name = parsed?.name || 'ללא שם';
-        setUserName(name);
+        const displayName = composeUserDisplayName(parsed);
+        setUserName(displayName);
         setUserObj(parsed);
       } catch (e) {
         console.error('❌ שגיאה בפענוח user:', e);
