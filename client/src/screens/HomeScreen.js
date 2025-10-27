@@ -113,7 +113,7 @@ const isEventExpired = (event) => {
 const formatExpirationCountdown = (event) => {
   const expiresAt = parseDateSafely(event?.expiresAt);
   if (!expiresAt) {
-    return { label: 'ללא תפוגה', isExpired: false };
+    return { label: '', isExpired: false };
   }
 
   const diffMs = expiresAt.getTime() - Date.now();
