@@ -112,9 +112,10 @@ export default function AddEventScreen() {
           .filter((friend) => selectedFriendIds.includes(friend.id))
           .map((friend) => friend.name);
 
-        const namesLine = selectedNames.length > 0
-          ? `האירוע ישותף עם: ${selectedNames.join(', ')}`
-          : 'האירוע ישותף עם החברים שבחרת.';
+        const namesLine =
+          selectedNames.length > 0
+            ? `האירוע ישותף עם: ${selectedNames.join(', ')}`
+            : 'האירוע ישותף עם החברים שבחרת.';
 
         notificationsToCreate.push({
           title: '📢 אירוע משותף חדש',
@@ -154,6 +155,8 @@ export default function AddEventScreen() {
           placeholderTextColor="#9aa0a6"
         />
       </View>
+    );
+  };
 
       <View style={styles.sectionCard}>
         <Text style={styles.label}>בחרו צבע לזיהוי מהיר</Text>
