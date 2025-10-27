@@ -1,5 +1,16 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, Button, StyleSheet, Alert, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  Button,
+  StyleSheet,
+  Alert,
+  ScrollView,
+  TouchableOpacity,
+  Platform,
+} from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { useNavigation } from '@react-navigation/native';
 import { addEvent, getEvents } from '../services/api';
 import WheelColorPicker from 'react-native-wheel-color-picker';
@@ -9,6 +20,15 @@ export default function AddEventScreen() {
   const navigation = useNavigation();
   const [name, setName] = useState('');
   const [color, setColor] = useState('#000000');
+
+  const [hasExpiration, setHasExpiration] = useState(false);
+  const [expirationDate, setExpirationDate] = useState(() => {
+    const initial = new Date();
+    initial.setHours(23, 59, 0, 0);
+    return initial;
+  });
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
 
   // --- חדש: מצב אירוע משותף + בחירת חברים ---
   const [isShared, setIsShared] = useState(false);
@@ -28,6 +48,11 @@ export default function AddEventScreen() {
     );
   };
 
+  const formattedExpiration = useMemo(() => {
+    if (!hasExpiration || !expirationDate) return 'ללא תפוגה';
+    return expirationDate.toLocaleString();
+  }, [expirationDate, hasExpiration]);
+
   const handleAddEvent = async () => {
     if (!name.trim()) {
       Alert.alert("אנא הזן שם לאירוע לפני ההוספה");
@@ -38,6 +63,14 @@ export default function AddEventScreen() {
       return;
     }
 
+    if (hasExpiration) {
+      const now = new Date();
+      if (!expirationDate || expirationDate <= now) {
+        Alert.alert('אנא בחר תאריך תפוגה עתידי עבור האירוע');
+        return;
+      }
+    }
+
     const newEvent = {
       name,
       color,
@@ -45,6 +78,12 @@ export default function AddEventScreen() {
       // --- שדות חדשים לשלב היסודות של השיתוף ---
       shared: isShared,
       participants: selectedFriendIds, // מזהי חברים
+      ...(hasExpiration
+        ? {
+            expiresAt: expirationDate.toISOString(),
+            expirationDurationMs: Math.max(expirationDate.getTime() - Date.now(), 0),
+          }
+        : { expiresAt: null, expirationDurationMs: null }),
     };
 
     try {
@@ -117,6 +156,71 @@ export default function AddEventScreen() {
 
       <Text style={styles.label}>תצוגת צבע נבחר:</Text>
       <View style={[styles.colorPreview, { backgroundColor: color }]} />
+
+      <View style={styles.expirationWrapper}>
+        <TouchableOpacity
+          style={[styles.expirationToggle, hasExpiration && styles.expirationToggleActive]}
+          onPress={() => setHasExpiration((prev) => !prev)}
+        >
+          <Text style={[styles.expirationToggleText, hasExpiration && styles.expirationToggleTextActive]}>
+            {hasExpiration ? '⏰ תפוגת אירוע: פעילה' : 'להגדיר תפוגה לאירוע?'}
+          </Text>
+        </TouchableOpacity>
+
+        {hasExpiration && (
+          <View style={styles.expirationBox}>
+            <Text style={styles.expirationLabel}>התפוגה הנוכחית:</Text>
+            <Text style={styles.expirationValue}>{formattedExpiration}</Text>
+
+            <View style={styles.expirationButtonsRow}>
+              <TouchableOpacity
+                style={styles.expirationBtn}
+                onPress={() => setShowDatePicker(true)}
+              >
+                <Text style={styles.expirationBtnText}>בחר תאריך</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.expirationBtn}
+                onPress={() => setShowTimePicker(true)}
+              >
+                <Text style={styles.expirationBtnText}>בחר שעה</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+      </View>
+
+      {showDatePicker && (
+        <DateTimePicker
+          value={expirationDate}
+          mode="date"
+          minimumDate={new Date()}
+          onChange={(_, selectedDate) => {
+            setShowDatePicker(Platform.OS === 'ios');
+            if (selectedDate) {
+              const updated = new Date(expirationDate);
+              updated.setFullYear(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
+              setExpirationDate(updated);
+            }
+          }}
+        />
+      )}
+
+      {showTimePicker && (
+        <DateTimePicker
+          value={expirationDate}
+          mode="time"
+          is24Hour
+          onChange={(_, selectedDate) => {
+            setShowTimePicker(Platform.OS === 'ios');
+            if (selectedDate) {
+              const updated = new Date(expirationDate);
+              updated.setHours(selectedDate.getHours(), selectedDate.getMinutes(), 0, 0);
+              setExpirationDate(updated);
+            }
+          }}
+        />
+      )}
 
       {/* --- חדש: כפתור 'אירוע משותף?' + רשימת חברים --- */}
       <View style={styles.sharedRow}>
@@ -235,6 +339,71 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 4,
     elevation: 2,
+  },
+  expirationWrapper: {
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: '#d5d5d5',
+    borderRadius: 14,
+    backgroundColor: '#f9f9ff',
+    padding: 16,
+  },
+  expirationToggle: {
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#d0d7ff',
+    alignItems: 'center',
+  },
+  expirationToggleActive: {
+    backgroundColor: '#e8f0ff',
+    borderColor: '#90a4ff',
+  },
+  expirationToggleText: {
+    fontSize: 16,
+    color: '#4a4a4a',
+    fontWeight: '600',
+  },
+  expirationToggleTextActive: {
+    color: '#2948ff',
+  },
+  expirationBox: {
+    marginTop: 16,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#dde1f9',
+    gap: 8,
+  },
+  expirationLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#555',
+  },
+  expirationValue: {
+    fontSize: 16,
+    color: '#333',
+  },
+  expirationButtonsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 10,
+    gap: 12,
+  },
+  expirationBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: '#e0e7ff',
+    alignItems: 'center',
+  },
+  expirationBtnText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1a237e',
   },
   sharedBtnActive: {
     backgroundColor: '#e6f0ff',

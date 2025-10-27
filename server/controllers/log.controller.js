@@ -1,4 +1,5 @@
 const Log = require('../models/log.model');
+const Event = require('../models/event.model');
 
 // ניהול תיעודים - כולל: הוספה שליפה עם סינון , ומחיקה .
 
@@ -40,6 +41,22 @@ const getAllLogs = async (req, res) => {
 const createLog = async (req, res) => {
   try {
     const { eventId, eventName, comment, imageUri, location } = req.body;
+
+    if (!eventId) {
+      return res.status(400).json({ message: 'נדרש מזהה אירוע לתיעוד' });
+    }
+
+    const event = await Event.findOne({ _id: eventId, userId: req.user._id });
+    if (!event || event.archived) {
+      return res.status(409).json({ message: 'האירוע אינו פעיל' });
+    }
+
+    if (event.expiresAt) {
+      const expirationDate = new Date(event.expiresAt);
+      if (!Number.isNaN(expirationDate.getTime()) && expirationDate <= new Date()) {
+        return res.status(409).json({ message: 'האירוע כבר הסתיים' });
+      }
+    }
 
 
     const now = new Date();
