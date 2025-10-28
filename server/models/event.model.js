@@ -23,6 +23,11 @@ const eventSchema = new mongoose.Schema({
         type: Boolean,
         default: false
     },
+    type: {
+        type: String,
+        enum: ['regular', 'temporary'],
+        default: 'regular'
+    },
     participants: {
         type: [String],
         default: []

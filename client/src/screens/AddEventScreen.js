@@ -24,6 +24,7 @@ export default function AddEventScreen() {
 
   const [name, setName] = useState('');
   const [color, setColor] = useState('#000000');
+  const [isTemporary, setIsTemporary] = useState(false);
 
   const [hasExpiration, setHasExpiration] = useState(false);
   const [expirationDate, setExpirationDate] = useState(() => {
@@ -80,6 +81,7 @@ export default function AddEventScreen() {
       color,
       totalColor: 0,
       shared: isShared,
+      type: isTemporary ? 'temporary' : 'regular',
       ...(hasExpiration
         ? {
           expiresAt: expirationDate.toISOString(),
@@ -167,6 +169,22 @@ export default function AddEventScreen() {
           <View style={[styles.colorSwatch, { backgroundColor: color }]} />
           <Text style={styles.colorPreviewText}>כך האירוע ייראה ברשימה</Text>
         </View>
+      </View>
+
+      <View style={styles.sectionCard}>
+        <Text style={styles.label}>סוג האירוע</Text>
+        <TouchableOpacity
+          style={[styles.actionToggle, isTemporary && styles.actionToggleActive]}
+          onPress={() => setIsTemporary((prev) => !prev)}
+          activeOpacity={0.9}
+        >
+          <Text style={[styles.actionToggleText, isTemporary && styles.actionToggleTextActive]}>
+            {isTemporary ? '⚡ אירוע זמני פעיל' : '⚡ הפכו את האירוע לזמני'}
+          </Text>
+        </TouchableOpacity>
+        <Text style={styles.helperText}>
+          אירועים זמניים נועדו לתיעודים קצרי טווח ויופיעו במסך התיעודים לתפעול מהיר.
+        </Text>
       </View>
 
       <View style={styles.sectionCard}>
@@ -373,6 +391,12 @@ const styles = StyleSheet.create({
     color: '#52616f',
     textAlign: 'right',
   },
+  helperText: {
+    fontSize: 13,
+    color: '#6b7a8f',
+    textAlign: 'right',
+    lineHeight: 18,
+  },
   actionToggle: {
     width: '100%',
     paddingVertical: 14,
@@ -388,6 +412,18 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 3,
     elevation: 2,
+  },
+  actionToggleActive: {
+    borderColor: ACCENT,
+    backgroundColor: '#e7fbfa',
+  },
+  actionToggleText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1f2933',
+  },
+  actionToggleTextActive: {
+    color: ACCENT_DARK,
   },
   expirationLabel: {
     fontSize: 15,
