@@ -42,6 +42,42 @@ import {
   appendNotificationToStorage,
 } from '../utils/notifications';
 
+const composeUserDisplayName = (user) => {
+  if (!user) return 'ללא שם';
+
+  const rawFirst = typeof user.name === 'string' ? user.name.trim() : '';
+  const rawLast = typeof user.lastName === 'string' ? user.lastName.trim() : '';
+  const username = typeof user.username === 'string' ? user.username.trim() : '';
+
+  let firstName = rawFirst;
+  let lastName = rawLast;
+
+  if (!lastName && rawFirst.includes(' ')) {
+    const parts = rawFirst.split(' ').filter(Boolean);
+    firstName = parts.shift() || '';
+    lastName = parts.join(' ');
+  }
+
+  const combined = `${firstName} ${lastName}`.trim();
+  if (combined) return combined;
+  if (rawFirst) return rawFirst;
+  if (username) return username;
+  return 'ללא שם';
+};
+
+const getCurrentTimeOfDay = () => {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'בוקר';
+  if (hour < 16) return 'צהריים';
+  if (hour < 20) return 'ערב';
+  return 'לילה';
+};
+
+const getCurrentDayOfWeek = () => {
+  const days = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
+  return days[new Date().getDay()];
+};
+
 const getCreatedAt = (event) => {
   if (event.createdAt) return new Date(event.createdAt);
   try {
@@ -77,12 +113,12 @@ const isEventExpired = (event) => {
 const formatExpirationCountdown = (event) => {
   const expiresAt = parseDateSafely(event?.expiresAt);
   if (!expiresAt) {
-    return { label: '', isExpired: false, tone: 'none' };
+    return { label: '', isExpired: false };
   }
 
   const diffMs = expiresAt.getTime() - Date.now();
   if (diffMs <= 0) {
-    return { label: 'האירוע הסתיים', isExpired: true, tone: 'expired' };
+    return { label: 'האירוע הסתיים', isExpired: true };
   }
 
   const totalMinutes = Math.floor(diffMs / 60000);
@@ -90,54 +126,13 @@ const formatExpirationCountdown = (event) => {
   const hours = Math.floor((totalMinutes % (60 * 24)) / 60);
   const minutes = totalMinutes % 60;
 
-  const parts = [];
   if (days > 0) {
-    parts.push(`${days} ${days === 1 ? 'יום' : 'ימים'}`);
+    return { label: ` ${days} ימים ו-${hours} שעות`, isExpired: false };
   }
   if (hours > 0) {
-    parts.push(`${hours} ${hours === 1 ? 'שעה' : 'שעות'}`);
+    return { label: ` ${hours} שעות ו-${minutes} דקות`, isExpired: false };
   }
-  if (days === 0 && minutes > 0) {
-    parts.push(`${minutes} ${minutes === 1 ? 'דקה' : 'דקות'}`);
-  }
-
-  const label = parts.length > 0 ? `נותרו ${parts.join(' ו-')}` : 'נותרה פחות מדקה';
-
-  let tone = 'info';
-  if (diffMs <= 60 * 60 * 1000) {
-    tone = 'urgent';
-  } else if (diffMs <= 24 * 60 * 60 * 1000) {
-    tone = 'warning';
-  }
-
-  return { label, isExpired: false, tone };
-};
-
-const formatLastPressLabel = (event) => {
-  const lastPress = getLastPress(event);
-  if (!lastPress || lastPress.getTime() === 0) {
-    return 'עדיין לא נרשמו לחיצות';
-  }
-
-  const diffMs = Date.now() - lastPress.getTime();
-  const minutes = Math.floor(diffMs / 60000);
-  if (minutes < 1) return 'לפני פחות מדקה';
-  if (minutes < 60) return `לפני ${minutes} ${minutes === 1 ? 'דקה' : 'דקות'}`;
-
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `לפני ${hours} ${hours === 1 ? 'שעה' : 'שעות'}`;
-
-  const days = Math.floor(hours / 24);
-  if (days < 7) return `לפני ${days} ${days === 1 ? 'יום' : 'ימים'}`;
-
-  const weeks = Math.floor(days / 7);
-  if (weeks < 4) return `לפני ${weeks} ${weeks === 1 ? 'שבוע' : 'שבועות'}`;
-
-  const months = Math.floor(days / 30);
-  if (months < 12) return `לפני ${months} ${months === 1 ? 'חודש' : 'חודשים'}`;
-
-  const years = Math.floor(days / 365);
-  return `לפני ${years} ${years === 1 ? 'שנה' : 'שנים'}`;
+  return { label: ` ${minutes} דקות`, isExpired: false };
 };
 
 const buildSummaryMessage = (event, summary) => {
@@ -186,6 +181,7 @@ const HomeScreen = () => {
 
   const [eventForDelete, setEventForDelete] = useState(null);
 
+  const [userName, setUserName] = useState('');
   const [userObj, setUserObj] = useState(null);
 
   const [sidebarVisible, setSidebarVisible] = useState(false);
@@ -196,9 +192,6 @@ const HomeScreen = () => {
   const [showShared, setShowShared] = useState(true);
   const [sortModalVisible, setSortModalVisible] = useState(false);
   const [sortMode, setSortMode] = useState('none');
-  const [filtersVisible, setFiltersVisible] = useState(false);
-
-  const filtersVisibleRef = useRef(filtersVisible);
 
   const clickTimeout = useRef(null);
   const hasEvents = events.length > 0;
@@ -283,6 +276,7 @@ const HomeScreen = () => {
 
     try {
       const parsedUser = JSON.parse(storedUser);
+      setUserName(composeUserDisplayName(parsedUser));
       setUserObj(parsedUser);
     } catch (error) {
       console.error('שגיאה בפענוח נתוני משתמש:', error);
@@ -308,22 +302,6 @@ const HomeScreen = () => {
       refreshUnread();
     }
   }, [sidebarVisible, refreshUnread]);
-
-  useEffect(() => {
-    filtersVisibleRef.current = filtersVisible;
-  }, [filtersVisible]);
-
-  useEffect(() => {
-    if (!hasEvents && filtersVisibleRef.current) {
-      setFiltersVisible(false);
-    }
-  }, [hasEvents]);
-
-  useEffect(() => {
-    if (sidebarVisible && filtersVisibleRef.current) {
-      setFiltersVisible(false);
-    }
-  }, [sidebarVisible]);
 
   useEffect(() => {
     return () => {
@@ -714,55 +692,10 @@ const HomeScreen = () => {
         return {
           ...event,
           expirationLabel: countdown.label,
-          expirationTone: countdown.tone,
           isExpired: countdown.isExpired,
-          lastPressLabel: formatLastPressLabel(event),
         };
       }),
     [events],
-  );
-
-  const eventSummary = useMemo(() => {
-    const total = decoratedEvents.length;
-    const sharedCount = decoratedEvents.filter((event) => event.shared).length;
-    const personalCount = total - sharedCount;
-    const expiringSoon = decoratedEvents.filter(
-      (event) => event.expirationTone === 'urgent' || event.expirationTone === 'warning',
-    ).length;
-    const expiredCount = decoratedEvents.filter((event) => event.isExpired).length;
-
-    return { total, sharedCount, personalCount, expiringSoon, expiredCount };
-  }, [decoratedEvents]);
-
-  const summaryCards = useMemo(
-    () => [
-      {
-        key: 'total',
-        label: 'סה"כ אירועים',
-        value: eventSummary.total,
-        subLabel: `${eventSummary.personalCount} אישיים`,
-        icon: 'grid-outline',
-      },
-      {
-        key: 'shared',
-        label: 'אירועים משותפים',
-        value: eventSummary.sharedCount,
-        subLabel:
-          eventSummary.sharedCount > 0 ? 'מתואמים עם הצוות' : 'עוד אין אירועים משותפים',
-        icon: 'people-outline',
-      },
-      {
-        key: 'expiring',
-        label: 'מתקרבים לסיום',
-        value: eventSummary.expiringSoon,
-        subLabel:
-          eventSummary.expiredCount > 0
-            ? `${eventSummary.expiredCount} כבר הסתיימו`
-            : 'מעודכן בזמן אמת',
-        icon: 'time-outline',
-      },
-    ],
-    [eventSummary],
   );
 
   const displayedEvents = useMemo(
@@ -788,145 +721,81 @@ const HomeScreen = () => {
     setSortMode(mode);
   }, []);
 
-  const handleRevealFilters = useCallback(() => {
-    setFiltersVisible(true);
-  }, []);
-
-  const handleHideFilters = useCallback(() => {
-    setFiltersVisible(false);
-  }, []);
-
-  const handleListScroll = useCallback((event) => {
-    const offsetY = event?.nativeEvent?.contentOffset?.y ?? 0;
-    if (offsetY < -70 && !filtersVisibleRef.current) {
-      setFiltersVisible(true);
-    } else if (offsetY > 20 && filtersVisibleRef.current) {
-      setFiltersVisible(false);
-    }
-  }, []);
-
   return (
     <ImageBackground
       source={require('../../assets/images/main-background.png')}
       style={styles.fullBackground}
       resizeMode="cover"
     >
-      <View style={styles.backgroundOverlay} pointerEvents="none" />
-      <View style={styles.screenContainer}>
-        <View
-          style={[styles.headerBar, sidebarVisible && styles.headerBarDisabled]}
-          pointerEvents={sidebarVisible ? 'none' : 'auto'}
+      <View style={styles.header}>
+        <TouchableOpacity
+          onPress={() => {
+            setSidebarInitialTab(0);
+            setSidebarVisible(true);
+          }}
+          style={styles.menuBtn}
+          activeOpacity={0.7}
         >
-          <TouchableOpacity
-            onPress={() => {
-              setSidebarInitialTab(0);
-              setSidebarVisible(true);
-            }}
-            style={styles.iconButton}
-            activeOpacity={0.7}
-            accessibilityLabel="פתח תפריט"
-          >
-            <Ionicons name="menu" size={22} color="#0B1A33" />
-          </TouchableOpacity>
+          <Text style={styles.menuIcon}>☰</Text>
+        </TouchableOpacity>
 
-          <Image source={require('../../assets/images/logo1.png')} style={styles.headerLogo} />
+        <TouchableOpacity
+          onPress={() => {
+            setSidebarInitialTab('notifications');
+            setSidebarVisible(true);
+          }}
+          style={styles.bellBtn}
+          activeOpacity={0.7}
+          accessibilityLabel="פתח התראות"
+        >
+          <Ionicons name="notifications-outline" size={22} color="#000" />
+          {hasUnreadNotif && <View style={styles.bellDot} />}
+        </TouchableOpacity>
 
-          <TouchableOpacity
-            onPress={() => {
-              setSidebarInitialTab('notifications');
-              setSidebarVisible(true);
-            }}
-            style={styles.iconButton}
-            activeOpacity={0.7}
-            accessibilityLabel="פתח התראות"
-          >
-            <Ionicons name="notifications-outline" size={22} color="#0B1A33" />
-            {hasUnreadNotif && <View style={styles.bellDot} />}
-          </TouchableOpacity>
-        </View>
-
-        {eventSummary.total > 0 && (
-          <View style={styles.summaryRow}>
-            {summaryCards.map((card) => (
-              <View key={card.key} style={styles.summaryCard}>
-                <View style={[styles.summaryIconWrapper, styles[`summaryIconWrapper_${card.key}`]]}>
-                  <Ionicons name={card.icon} size={16} color="#fff" />
-                </View>
-                <Text style={styles.summaryValue}>{card.value}</Text>
-                <Text style={styles.summaryLabel}>{card.label}</Text>
-                {card.subLabel ? <Text style={styles.summarySubLabel}>{card.subLabel}</Text> : null}
-              </View>
-            ))}
-          </View>
-        )}
-
-        {!hasEvents ? (
-          <EmptyEventsState onAddEvent={() => navigation.navigate('AddEvent')} />
-        ) : (
-          <View style={styles.content}>
-            <TopActionsBar
-              isEditMode={isEditMode}
-              onToggleEdit={() => setIsEditMode((prev) => !prev)}
-              onViewLogs={() => navigation.navigate('Logs')}
-              onAddEvent={() => navigation.navigate('AddEvent')}
-              disabled={sidebarVisible}
-            />
-            <TouchableOpacity
-              onPress={handleRevealFilters}
-              activeOpacity={0.7}
-              style={styles.filtersHandleContainer}
-              disabled={sidebarVisible}
-            >
-              <View style={styles.filtersHandle} />
-              {!filtersVisible && (
-                <Text style={styles.filtersHandleText}>משכו מטה כדי להציג מסננים</Text>
-              )}
-            </TouchableOpacity>
-
-            {filtersVisible && (
-              <View style={styles.filtersPanel}>
-                <EventsFilterBar
-                  showPersonal={showPersonal}
-                  showShared={showShared}
-                  onTogglePersonal={handleTogglePersonal}
-                  onToggleShared={handleToggleShared}
-                  onOpenSort={() => setSortModalVisible(true)}
-                />
-                <TouchableOpacity
-                  onPress={handleHideFilters}
-                  style={styles.filtersHideButton}
-                  activeOpacity={0.7}
-                  disabled={sidebarVisible}
-                >
-                  <Ionicons name="chevron-up" size={16} color="#3D4E68" />
-                  <Text style={styles.filtersHideText}>הסתר מסננים</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-
-            <FlatList
-              data={displayedEvents}
-              numColumns={3}
-              columnWrapperStyle={styles.columnWrapper}
-              keyExtractor={(item) => item._id}
-              renderItem={({ item }) => (
-                <EventButton
-                  item={item}
-                  isEditMode={isEditMode}
-                  onPress={() => handlePress(item)}
-                  onLongPress={() => handleLongPress(item)}
-                  onEditName={() => handleOpenEditName(item)}
-                  onEditColor={() => handleOpenEditColor(item)}
-                  onDelete={() => setEventForDelete(item)}
-                />
-              )}
-              contentContainerStyle={styles.listContent}
-              onScroll={handleListScroll}
-              scrollEventThrottle={16}
-            />
-          </View>
-        )}
+        <Image source={require('../../assets/images/logo1.png')} style={styles.logo} />
+        <Text style={styles.welcome}>ברוך הבא, {userName}</Text>
       </View>
+
+      {!hasEvents ? (
+        <EmptyEventsState onAddEvent={() => navigation.navigate('AddEvent')} />
+      ) : (
+        <View style={styles.content}>
+          <TopActionsBar
+            isEditMode={isEditMode}
+            onToggleEdit={() => setIsEditMode((prev) => !prev)}
+            onViewLogs={() => navigation.navigate('Logs')}
+            onAddEvent={() => navigation.navigate('AddEvent')}
+            disabled={sidebarVisible}
+          />
+
+          <EventsFilterBar
+            showPersonal={showPersonal}
+            showShared={showShared}
+            onTogglePersonal={handleTogglePersonal}
+            onToggleShared={handleToggleShared}
+            onOpenSort={() => setSortModalVisible(true)}
+          />
+
+          <FlatList
+            data={displayedEvents}
+            numColumns={2}
+            columnWrapperStyle={{ justifyContent: 'space-between' }}
+            keyExtractor={(item) => item._id}
+            renderItem={({ item }) => (
+              <EventButton
+                item={item}
+                isEditMode={isEditMode}
+                onPress={() => handlePress(item)}
+                onLongPress={() => handleLongPress(item)}
+                onEditName={() => handleOpenEditName(item)}
+                onEditColor={() => handleOpenEditColor(item)}
+                onDelete={() => setEventForDelete(item)}
+              />
+            )}
+            contentContainerStyle={styles.listContent}
+          />
+        </View>
+      )}
 
       <ColorPickerModal
         visible={Boolean(selectedEventForColor)}
@@ -972,164 +841,66 @@ const styles = StyleSheet.create({
     flex: 1,
     resizeMode: 'cover',
   },
-  backgroundOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(12, 24, 45, 0.08)',
-  },
-  screenContainer: {
-    flex: 1,
-    paddingTop: 60,
-    paddingHorizontal: 18,
-    paddingBottom: 16,
-  },
-  headerBar: {
-    flexDirection: 'row',
+  header: {
     alignItems: 'center',
-    justifyContent: 'space-between',
+    marginBottom: 20,
+    paddingTop: 8,
   },
-  headerBarDisabled: {
-    opacity: 0,
+  menuBtn: {
+    position: 'absolute',
+    left: 20,
+    top: 60,
+    zIndex: 10,
+    backgroundColor: 'rgba(255,255,255,0.8)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#eee',
   },
-  iconButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.92)',
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 8,
-    elevation: 4,
+  menuIcon: {
+    fontSize: 22,
   },
-  headerLogo: {
-    width: 140,
-    height: 46,
-    resizeMode: 'contain',
+  bellBtn: {
+    position: 'absolute',
+    right: 20,
+    top: 60,
+    zIndex: 10,
+    backgroundColor: 'rgba(255,255,255,0.8)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#eee',
   },
   bellDot: {
     position: 'absolute',
-    top: 8,
-    right: 10,
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+    top: 2,
+    right: 2,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
     backgroundColor: '#E53935',
-    borderWidth: 1,
-    borderColor: '#fff',
   },
-  summaryRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 12,
-    flexWrap: 'wrap',
+  logo: {
+    width: 200,
+    height: 200,
+    resizeMode: 'contain',
+    marginBottom: -60,
+    marginTop: -40,
   },
-  summaryCard: {
-    flexBasis: '30%',
-    minWidth: 96,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    borderRadius: 14,
-    paddingVertical: 10,
-    paddingHorizontal: 10,
-    marginBottom: 10,
-    marginHorizontal: 3,
-    shadowColor: '#001',
-    shadowOpacity: 0.05,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 8,
-    elevation: 1,
-  },
-  summaryIconWrapper: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  summaryIconWrapper_total: {
-    backgroundColor: '#3DD6D0',
-  },
-  summaryIconWrapper_shared: {
-    backgroundColor: '#7C5CFF',
-  },
-  summaryIconWrapper_expiring: {
-    backgroundColor: '#FF8A65',
-  },
-  summaryValue: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#0B1A33',
-  },
-  summaryLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#4A5A78',
-    marginTop: 4,
-  },
-  summarySubLabel: {
-    fontSize: 10,
-    color: '#7A869A',
-    marginTop: 2,
+  welcome: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: '#333',
+    textAlign: 'center',
+    marginTop: -25,
   },
   content: {
     flex: 1,
-    marginTop: 12,
-  },
-  filtersHandleContainer: {
-    alignItems: 'center',
-    marginTop: 12,
-    marginBottom: 6,
-  },
-  filtersHandle: {
-    width: 52,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: 'rgba(16, 32, 54, 0.15)',
-    marginBottom: 4,
-  },
-  filtersHandleText: {
-    fontSize: 11,
-    color: '#516070',
-    fontWeight: '500',
-  },
-  filtersPanel: {
-    backgroundColor: 'rgba(255, 255, 255, 0.92)',
-    borderRadius: 16,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    marginBottom: 10,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 6,
-    elevation: 1,
-  },
-  filtersHideButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'center',
-    marginTop: 4,
-    paddingVertical: 4,
     paddingHorizontal: 10,
-    borderRadius: 12,
-    backgroundColor: 'rgba(16, 32, 54, 0.06)',
-  },
-  filtersHideText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#3D4E68',
-    marginStart: 4,
-  },
-  columnWrapper: {
-    justifyContent: 'space-between',
-    paddingHorizontal: 4,
-    marginBottom: 12,
   },
   listContent: {
-    paddingBottom: 140,
-    paddingTop: 4,
-    paddingHorizontal: 2,
+    paddingBottom: 80,
   },
 });
