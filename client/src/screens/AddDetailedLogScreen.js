@@ -3,7 +3,6 @@ import {
   View,
   Text,
   TextInput,
-  Button,
   Image,
   StyleSheet,
   Alert,
@@ -11,14 +10,17 @@ import {
   Dimensions,
   Platform,
   Linking,
-  Modal
-
+  Modal,
+  TouchableOpacity,
 } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { addLog, updateEvent, getEvents } from '../services/api';
+
+const ACCENT = '#3dd6d0';
+const ACCENT_DARK = '#0f766e';
 
 export default function AddDetailedLogScreen() {
   const navigation = useNavigation();
@@ -234,66 +236,171 @@ export default function AddDetailedLogScreen() {
   };
 
 
+  const handleGoBack = () => {
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+    } else {
+      navigation.navigate('Home');
+    }
+  };
+
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>הוספת תיעוד מפורט לאירוע</Text>
+    <ScrollView
+      contentContainerStyle={styles.container}
+      keyboardShouldPersistTaps="handled"
+    >
+      <View style={styles.topBar}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={handleGoBack}
+          activeOpacity={0.85}
+        >
+          <Text style={styles.backButtonIcon}>←</Text>
+          <Text style={styles.backButtonText}>חזרה</Text>
+        </TouchableOpacity>
+      </View>
 
-      <Text style={styles.label}>הערה:</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="כתוב הערה כאן..."
-        value={comment}
-        onChangeText={setComment}
-      />
+      <View style={styles.headerWrapper}>
+        <Text style={styles.title}>הוספת תיעוד מפורט</Text>
+        <Text style={styles.subtitle}>לכידת חוויה מלאה עם הערות, תמונות ומיקום מדויק</Text>
+      </View>
 
-      <Button title="📷 הוסף תמונה" onPress={chooseImageSource} />
-      {imageUri ? <Image source={{ uri: imageUri }} style={styles.image} /> : null}
-
-      <View style={{ height: 20 }} />
-
-      <Button title="📍 הוסף מיקום" onPress={chooseLocationSource} />
-
-      {location ? (
-        <View style={{
-          marginTop: 10, padding: 12, borderRadius: 12, backgroundColor: '#F7F9FC',
-          borderWidth: 1, borderColor: '#E6ECF2'
-        }}>
-          <Text style={{ fontWeight: '600', marginBottom: 6 }}>מיקום שנשמר</Text>
-          <Text style={{ marginBottom: 8 }}>
-            {address || `(${location.lat.toFixed(5)}, ${location.lng.toFixed(5)})`}
-          </Text>
-
-          <View style={{ borderRadius: 10, overflow: 'hidden' }}>
-            <MapView
-              style={{ width: '100%', height: 140 }}
-              pointerEvents="none"
-              initialRegion={{
-                latitude: location.lat,
-                longitude: location.lng,
-                latitudeDelta: 0.01,
-                longitudeDelta: 0.01,
-              }}
-            >
-              <Marker coordinate={{ latitude: location.lat, longitude: location.lng }} />
-            </MapView>
-          </View>
-
-          <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
-            <Button title="פתח במפות" onPress={() => openInMaps(location)} />
-            <Button title="שנה מיקום" onPress={chooseLocationSource} />
-          </View>
+      {eventName ? (
+        <View style={styles.eventPill}>
+          <Text style={styles.eventPillLabel}>אירוע</Text>
+          <Text style={styles.eventPillValue}>{eventName}</Text>
         </View>
       ) : null}
 
-      <Modal visible={mapVisible} transparent animationType="slide" onRequestClose={() => setMapVisible(false)}>
-        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center' }}>
-          <View style={{ width: '92%', backgroundColor: '#fff', borderRadius: 14, overflow: 'hidden' }}>
-            <View style={{ padding: 12 }}>
-              <Text style={{ fontSize: 18, fontWeight: '700', textAlign: 'center' }}>בחר מיקום על המפה</Text>
-              <Text style={{ textAlign: 'center', marginTop: 4, opacity: 0.7 }}>טפח/י על המפה להצבת סמן</Text>
+      <View style={styles.sectionCard}>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>סיפור האירוע</Text>
+          <Text style={styles.sectionSubtitle}>ספרו לנו מה קרה בפרטי פרטים</Text>
+        </View>
+
+        <Text style={styles.label}>הערות חופשיות</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="שתפו תובנות, רגשות או מידע חשוב להמשך..."
+          placeholderTextColor="#9aa0a6"
+          value={comment}
+          onChangeText={setComment}
+          multiline
+          textAlignVertical="top"
+        />
+      </View>
+
+      <View style={styles.sectionCard}>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>תיעוד חזותי</Text>
+          <Text style={styles.sectionSubtitle}>הוסיפו תמונה שמספרת את הסיפור</Text>
+        </View>
+
+        <TouchableOpacity
+          style={styles.secondaryButton}
+          onPress={chooseImageSource}
+          activeOpacity={0.88}
+        >
+          <Text style={styles.secondaryButtonText}>📷 הוספת תמונה</Text>
+        </TouchableOpacity>
+
+        {imageUri ? (
+          <View style={styles.imageWrapper}>
+            <Image source={{ uri: imageUri }} style={styles.image} />
+          </View>
+        ) : (
+          <View style={styles.imagePlaceholder}>
+            <Text style={styles.imagePlaceholderText}>
+              עדיין אין תמונה. לחיצה על הכפתור תאפשר צילום או בחירה מהגלריה.
+            </Text>
+          </View>
+        )}
+      </View>
+
+      <View style={styles.sectionCard}>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>מיקום האירוע</Text>
+          <Text style={styles.sectionSubtitle}>בחרו את הדרך הנוחה לכם לציין איפה זה קרה</Text>
+        </View>
+
+        <View style={styles.actionsRow}>
+          <TouchableOpacity
+            style={styles.secondaryButton}
+            onPress={chooseLocationSource}
+            activeOpacity={0.88}
+          >
+            <Text style={styles.secondaryButtonText}>📍 בחירת מיקום</Text>
+          </TouchableOpacity>
+          {location ? (
+            <TouchableOpacity
+              style={styles.secondaryGhostButton}
+              onPress={() => openInMaps(location)}
+              activeOpacity={0.88}
+            >
+              <Text style={styles.secondaryGhostButtonText}>פתיחה במפות</Text>
+            </TouchableOpacity>
+          ) : null}
+        </View>
+
+        {location ? (
+          <View style={styles.locationCard}>
+            <View style={styles.locationHeader}>
+              <Text style={styles.locationTitle}>מיקום שנשמר</Text>
+              <View style={styles.locationBadge}>
+                <Text style={styles.locationBadgeText}>נבחר</Text>
+              </View>
             </View>
 
-            <View style={{ width: '100%', height: Dimensions.get('window').height * 0.5 }}>
+            <Text style={styles.locationText}>
+              {address || `(${location.lat.toFixed(5)}, ${location.lng.toFixed(5)})`}
+            </Text>
+
+            <View style={styles.mapContainer}>
+              <MapView
+                style={styles.map}
+                pointerEvents="none"
+                initialRegion={{
+                  latitude: location.lat,
+                  longitude: location.lng,
+                  latitudeDelta: 0.01,
+                  longitudeDelta: 0.01,
+                }}
+              >
+                <Marker coordinate={{ latitude: location.lat, longitude: location.lng }} />
+              </MapView>
+            </View>
+
+            <View style={styles.locationActions}>
+              <TouchableOpacity
+                style={styles.secondaryGhostButton}
+                onPress={chooseLocationSource}
+                activeOpacity={0.88}
+              >
+                <Text style={styles.secondaryGhostButtonText}>עדכון מיקום</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : (
+          <Text style={styles.helperText}>
+            טרם נבחר מיקום. ניתן להשתמש במיקום הנוכחי או לבחור נקודה אחרת על גבי המפה.
+          </Text>
+        )}
+      </View>
+
+      <Modal
+        visible={mapVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setMapVisible(false)}
+      >
+        <View style={styles.mapModalOverlay}>
+          <View style={styles.mapModalCard}>
+            <View style={styles.mapModalHeader}>
+              <Text style={styles.mapModalTitle}>בחרו מיקום על המפה</Text>
+              <Text style={styles.mapModalSubtitle}>הקישו על המפה להצבת סמן מדויק</Text>
+            </View>
+
+            <View style={styles.mapModalContent}>
               {tempRegion && (
                 <MapView
                   style={{ flex: 1 }}
@@ -308,12 +415,21 @@ export default function AddDetailedLogScreen() {
               )}
             </View>
 
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', padding: 12 }}>
-              <Button title="ביטול" onPress={() => setMapVisible(false)} />
-              <Button
-                title="אישור"
+            <View style={styles.mapModalActions}>
+              <TouchableOpacity
+                style={styles.secondaryGhostButton}
+                onPress={() => setMapVisible(false)}
+                activeOpacity={0.88}
+              >
+                <Text style={styles.secondaryGhostButtonText}>ביטול</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.primaryButtonSmall}
                 onPress={async () => {
-                  if (!tempMarker) { Alert.alert('בחר/י נקודה על המפה'); return; }
+                  if (!tempMarker) {
+                    Alert.alert('בחר/י נקודה על המפה');
+                    return;
+                  }
                   const lat = tempMarker.latitude;
                   const lng = tempMarker.longitude;
                   setLocation({ lat, lng });
@@ -321,17 +437,24 @@ export default function AddDetailedLogScreen() {
                   setAddress(addr);
                   setMapVisible(false);
                 }}
-              />
+                activeOpacity={0.88}
+              >
+                <Text style={styles.primaryButtonText}>אישור</Text>
+              </TouchableOpacity>
             </View>
           </View>
         </View>
       </Modal>
 
-
-
-      <View style={{ height: 20 }} />
-
-      <Button title="💾 שמור תיעוד" onPress={handleSave} />
+      <View style={styles.buttonWrapper}>
+        <TouchableOpacity
+          style={styles.primaryButton}
+          onPress={handleSave}
+          activeOpacity={0.9}
+        >
+          <Text style={styles.primaryButtonText}>💾 שמירת התיעוד</Text>
+        </TouchableOpacity>
+      </View>
     </ScrollView>
   );
 }
@@ -350,20 +473,288 @@ const getCurrentDayOfWeek = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { padding: 20, backgroundColor: '#fff', flexGrow: 1 },
-  title: { fontSize: 24, fontWeight: 'bold', marginBottom: 20, textAlign: 'center' },
-  label: { fontSize: 16, marginBottom: 5 },
+  container: {
+    paddingHorizontal: 20,
+    paddingVertical: 24,
+    backgroundColor: '#f4f7fb',
+    flexGrow: 1,
+    gap: 18,
+  },
+  topBar: {
+    flexDirection: 'row',
+    justifyContent: 'flex-start',
+  },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#e7eefc',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+  },
+  backButtonIcon: {
+    fontSize: 16,
+    color: '#1f2933',
+  },
+  backButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1f2933',
+  },
+  headerWrapper: {
+    alignItems: 'flex-end',
+    gap: 6,
+  },
+  title: {
+    fontSize: 26,
+    fontWeight: 'bold',
+    textAlign: 'right',
+    color: '#1f2933',
+  },
+  subtitle: {
+    fontSize: 15,
+    color: '#51606f',
+    textAlign: 'right',
+  },
+  eventPill: {
+    alignSelf: 'flex-end',
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderWidth: 1,
+    borderColor: '#d8e2f0',
+    shadowColor: '#0a2540',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  eventPillLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#0f172a',
+  },
+  eventPillValue: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: ACCENT_DARK,
+  },
+  sectionCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 18,
+    paddingVertical: 18,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: '#d8e2f0',
+    shadowColor: '#0a2540',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 3,
+    elevation: 1,
+    gap: 14,
+  },
+  sectionHeader: {
+    alignItems: 'flex-end',
+    gap: 4,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1f2933',
+  },
+  sectionSubtitle: {
+    fontSize: 14,
+    color: '#6b7a90',
+  },
+  label: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#2f3c4a',
+    textAlign: 'right',
+  },
   input: {
     borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 8,
-    padding: 10,
-    marginBottom: 15,
+    borderColor: '#d0d7e2',
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    fontSize: 15,
+    minHeight: 120,
+    backgroundColor: '#f8fafc',
+    textAlign: 'right',
+    color: '#1f2933',
+  },
+  secondaryButton: {
+    backgroundColor: ACCENT,
+    borderRadius: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    alignItems: 'center',
+  },
+  secondaryButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#04323d',
+  },
+  secondaryGhostButton: {
+    borderRadius: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    backgroundColor: '#ffffff',
+  },
+  secondaryGhostButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1f2937',
+  },
+  imageWrapper: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#d8e2f0',
   },
   image: {
     width: '100%',
-    height: 200,
-    marginVertical: 10,
-    borderRadius: 8,
+    height: 220,
+  },
+  imagePlaceholder: {
+    borderWidth: 1,
+    borderColor: '#dbe4f3',
+    borderStyle: 'dashed',
+    borderRadius: 16,
+    padding: 18,
+    backgroundColor: '#f8fbff',
+  },
+  imagePlaceholderText: {
+    fontSize: 14,
+    color: '#6b7a90',
+    textAlign: 'center',
+  },
+  actionsRow: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  locationCard: {
+    borderWidth: 1,
+    borderColor: '#dbe4f3',
+    borderRadius: 16,
+    padding: 16,
+    backgroundColor: '#f7f9fc',
+    gap: 10,
+  },
+  locationHeader: {
+    flexDirection: 'row-reverse',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  locationTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1f2933',
+  },
+  locationBadge: {
+    backgroundColor: '#e2f5f3',
+    borderRadius: 12,
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+  },
+  locationBadgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: ACCENT_DARK,
+  },
+  locationText: {
+    fontSize: 14,
+    color: '#344454',
+    textAlign: 'right',
+  },
+  mapContainer: {
+    borderRadius: 14,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+  },
+  map: {
+    width: '100%',
+    height: 160,
+  },
+  locationActions: {
+    flexDirection: 'row-reverse',
+    justifyContent: 'flex-start',
+  },
+  helperText: {
+    fontSize: 13,
+    color: '#6b7a90',
+    textAlign: 'right',
+  },
+  mapModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.35)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 18,
+  },
+  mapModalCard: {
+    width: '100%',
+    backgroundColor: '#ffffff',
+    borderRadius: 20,
+    overflow: 'hidden',
+  },
+  mapModalHeader: {
+    paddingVertical: 16,
+    paddingHorizontal: 18,
+    gap: 6,
+  },
+  mapModalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    textAlign: 'center',
+    color: '#0f172a',
+  },
+  mapModalSubtitle: {
+    fontSize: 14,
+    textAlign: 'center',
+    color: '#526581',
+  },
+  mapModalContent: {
+    width: '100%',
+    height: Dimensions.get('window').height * 0.45,
+  },
+  mapModalActions: {
+    flexDirection: 'row-reverse',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+  },
+  primaryButton: {
+    backgroundColor: ACCENT_DARK,
+    borderRadius: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 18,
+    alignItems: 'center',
+  },
+  primaryButtonSmall: {
+    backgroundColor: ACCENT_DARK,
+    borderRadius: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 22,
+    alignItems: 'center',
+  },
+  primaryButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#f8fafc',
+  },
+  buttonWrapper: {
+    paddingBottom: 24,
   },
 });
