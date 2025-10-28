@@ -24,12 +24,7 @@ const createEvent = async (req, res) => {
       participants = [],
       expiresAt,
       expirationDurationMs,
-      type = 'regular',
     } = req.body;
-
-    if (!['regular', 'temporary'].includes(type)) {
-      return res.status(400).json({ message: 'סוג האירוע אינו תקין' });
-    }
 
     let parsedExpiresAt = null;
     if (expiresAt) {
@@ -54,7 +49,6 @@ const createEvent = async (req, res) => {
       userId: req.user._id,
       expiresAt: parsedExpiresAt,
       expirationDurationMs: normalizedDuration,
-      type,
     });
 
     await newEvent.save();
@@ -79,7 +73,6 @@ const updateEvent = async (req, res) => {
       expirationAcknowledged,
       archived,
       lastPressedAt,
-      type,
     } = req.body;
 
     const updates = {
@@ -94,13 +87,6 @@ const updateEvent = async (req, res) => {
 
     if (participants !== undefined) {
       updates.participants = Array.isArray(participants) ? participants : [];
-    }
-
-    if (type !== undefined) {
-      if (!['regular', 'temporary'].includes(type)) {
-        return res.status(400).json({ message: 'סוג האירוע אינו תקין' });
-      }
-      updates.type = type;
     }
 
     if (expiresAt !== undefined) {
@@ -247,27 +233,6 @@ const getEventSummary = async (req, res) => {
   }
 };
 
-const getTemporaryEventsOverview = async (req, res) => {
-  try {
-    const events = await Event.find({
-      userId: req.user._id,
-      type: 'temporary',
-      archived: { $ne: true },
-    }).sort({ updatedAt: -1 });
-
-    const summaries = await Promise.all(
-      events.map(async (event) => ({
-        event,
-        summary: await buildEventSummary(event._id, req.user._id),
-      }))
-    );
-
-    res.json(summaries);
-  } catch (err) {
-    res.status(500).json({ message: 'שגיאה בשליפת האירועים הזמניים' });
-  }
-};
-
 const restartEvent = async (req, res) => {
   const { id } = req.params;
   const { expiresAt, expirationDurationMs, resetLogs = true } = req.body || {};
@@ -344,7 +309,6 @@ module.exports = {
   deleteEventAndLogs,
   markEventExpirationNotified,
   getEventSummary,
-  getTemporaryEventsOverview,
   restartEvent,
   archiveEvent,
 };
