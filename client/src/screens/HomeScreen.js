@@ -127,12 +127,12 @@ const formatExpirationCountdown = (event) => {
   const minutes = totalMinutes % 60;
 
   if (days > 0) {
-    return { label: `נותרו ${days} ימים ו-${hours} שעות`, isExpired: false };
+    return { label: ` ${days} ימים ו-${hours} שעות`, isExpired: false };
   }
   if (hours > 0) {
-    return { label: `נותרו ${hours} שעות ו-${minutes} דקות`, isExpired: false };
+    return { label: ` ${hours} שעות ו-${minutes} דקות`, isExpired: false };
   }
-  return { label: `נותרו ${minutes} דקות`, isExpired: false };
+  return { label: ` ${minutes} דקות`, isExpired: false };
 };
 
 const buildSummaryMessage = (event, summary) => {
