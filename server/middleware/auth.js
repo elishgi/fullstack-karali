@@ -5,15 +5,24 @@ const JWT_SECRET = process.env.JWT_SECRET || 'supersecret';
 
 module.exports = function (req, res, next) {
   const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  let token = null;
+
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    token = authHeader.split(' ')[1];
+  } else if (req.query && typeof req.query.token === 'string' && req.query.token) {
+    token = req.query.token;
+    delete req.query.token;
+  }
+
+  if (!token) {
     return res.status(401).json({ message: 'לא נשלח טוקן אימות' });
   }
 
-  const token = authHeader.split(' ')[1];
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
 
-    const extractedId = decoded?._id || decoded?.id || decoded?.userId || decoded?.sub;
+    const extractedId =
+      decoded?._id || decoded?.id || decoded?.userId || decoded?.sub;
     if (!extractedId) {
       return res.status(401).json({ message: 'טוקן חסר מזהה משתמש' });
     }
