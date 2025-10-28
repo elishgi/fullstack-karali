@@ -101,9 +101,9 @@ export default function AddEventScreen() {
       type: isTemporary ? 'temporary' : 'regular',
       ...(isTemporary
         ? {
-            expiresAt: expirationDate.toISOString(),
-            expirationDurationMs: Math.max(expirationDate.getTime() - Date.now(), 0),
-          }
+          expiresAt: expirationDate.toISOString(),
+          expirationDurationMs: Math.max(expirationDate.getTime() - Date.now(), 0),
+        }
         : { expiresAt: null, expirationDurationMs: null }),
     };
 
@@ -170,14 +170,14 @@ export default function AddEventScreen() {
 
       <View style={styles.headerWrapper}>
         <Text style={styles.title}>הוספת אירוע חדש</Text>
-        <Text style={styles.subtitle}>צרו אירוע מותאם אישית ותחילת תיעוד מיידי</Text>
+        <Text style={styles.subtitle}>צור אירוע מותאם אישית - לפי הפרמטרים שלך.</Text>
       </View>
 
       <View style={styles.sectionCard}>
         <Text style={styles.label}>שם האירוע</Text>
         <TextInput
           style={styles.input}
-          placeholder="תנו שם שמתאים לכם"
+          placeholder="תן שם שמתאים לך"
           value={name}
           onChangeText={setName}
           placeholderTextColor="#9aa0a6"
@@ -185,7 +185,7 @@ export default function AddEventScreen() {
       </View>
 
       <View style={styles.sectionCard}>
-        <Text style={styles.label}>בחרו צבע לזיהוי מהיר</Text>
+        <Text style={styles.label}>בחר צבע לזיהוי האירוע</Text>
         <View style={styles.colorPickerWrapper}>
           <WheelColorPicker
             color={color}
@@ -195,7 +195,6 @@ export default function AddEventScreen() {
         </View>
         <View style={styles.colorPreview}>
           <View style={[styles.colorSwatch, { backgroundColor: color }]} />
-          <Text style={styles.colorPreviewText}>כך האירוע ייראה ברשימה</Text>
         </View>
       </View>
 
@@ -207,18 +206,15 @@ export default function AddEventScreen() {
           activeOpacity={0.9}
         >
           <Text style={[styles.actionToggleText, isTemporary && styles.actionToggleTextActive]}>
-            {isTemporary ? '⚡ אירוע זמני פעיל' : '⚡ הפכו את האירוע לזמני'}
+            {isTemporary ? '⚡ אירוע זמני פעיל' : '⚡ הפוך את האירוע לזמני'}
           </Text>
         </TouchableOpacity>
         <Text style={styles.helperText}>
-          אירועים זמניים נועדו לתיעודים קצרי טווח ויופיעו במסך התיעודים לתפעול מהיר.
-        </Text>
-        <Text style={styles.helperText}>
-          לאחר הפעלת המצב תוכלו להגדיר תאריך ושעת תפוגה מותאמים.
+          בהפעלת מצב זה - תוכל להגדיר תאריך ושעת תפוגה לאירוע שלך.
         </Text>
         {isTemporary && (
           <View style={styles.expirationBox}>
-            <Text style={styles.expirationLabel}>התפוגה הנוכחית</Text>
+
             <Text style={styles.expirationValue}>{formattedExpiration}</Text>
 
             <View style={styles.expirationButtonsRow}>
@@ -297,7 +293,7 @@ export default function AddEventScreen() {
             </View>
 
             <View style={styles.friendsBox}>
-              <Text style={styles.friendsTitle}>בחרו עם מי לשתף את האירוע</Text>
+              <Text style={styles.friendsTitle}>בחר עם מי לשתף את האירוע</Text>
               {friends.map((friend) => {
                 const checked = selectedFriendIds.includes(friend.id);
                 return (
@@ -359,6 +355,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#1f2933',
+    
   },
   headerWrapper: {
     alignItems: 'flex-end',

@@ -126,11 +126,6 @@ const formatExpirationCountdown = (event) => {
   return { label, isExpired: false, tone };
 };
 
-const coerceCount = (value, fallback = 0) => {
-  const parsed = Number(value ?? fallback);
-  return Number.isFinite(parsed) ? parsed : fallback;
-};
-
 const formatLastPressLabel = (event) => {
   const lastPress = getLastPress(event);
   if (!lastPress || lastPress.getTime() === 0) {
@@ -892,20 +887,16 @@ const HomeScreen = () => {
           <View style={styles.summaryRow}>
             {summaryCards.map((card) => (
               <View key={card.key} style={styles.summaryCard}>
-                <View style={styles.summaryPrimaryRow}>
+                <View style={styles.summaryTopRow}>
                   <View
                     style={[styles.summaryIconWrapper, styles[`summaryIconWrapper_${card.key}`]]}
                   >
-                    <Ionicons name={card.icon} size={15} color="#fff" />
+                    <Ionicons name={card.icon} size={16} color="#fff" />
                   </View>
                   <Text style={styles.summaryValue}>{card.value}</Text>
                 </View>
-                <View style={styles.summaryTextBlock}>
-                  <Text style={styles.summaryLabel}>{card.label}</Text>
-                  {card.subLabel ? (
-                    <Text style={styles.summarySubLabel}>{card.subLabel}</Text>
-                  ) : null}
-                </View>
+                <Text style={styles.summaryLabel}>{card.label}</Text>
+                {card.subLabel ? <Text style={styles.summarySubLabel}>{card.subLabel}</Text> : null}
               </View>
             ))}
           </View>
@@ -917,10 +908,7 @@ const HomeScreen = () => {
           </View>
         ) : (
           <View style={styles.content}>
-            <View
-              style={[styles.eventsSurface, sidebarVisible && styles.eventsSurfaceDrawerOpen]}
-              pointerEvents={sidebarVisible ? 'none' : 'auto'}
-            >
+            <View style={styles.eventsSurface}>
               <TouchableOpacity
                 onPress={handleRevealFilters}
                 activeOpacity={0.7}
@@ -1041,7 +1029,7 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingTop: 60,
     paddingHorizontal: 18,
-    paddingBottom: 120,
+    paddingBottom: 160,
   },
   headerBar: {
     flexDirection: 'row',
@@ -1092,30 +1080,34 @@ const styles = StyleSheet.create({
   },
   summaryRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'center',
     justifyContent: 'space-between',
     marginTop: 16,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
+    flexWrap: 'wrap',
+    paddingVertical: 4,
+    paddingHorizontal: 6,
     backgroundColor: 'rgba(16, 32, 54, 0.05)',
-    borderRadius: 24,
+    borderRadius: 18,
   },
   summaryCard: {
-    flexGrow: 1,
-    flexShrink: 1,
-    minWidth: 110,
+    flexBasis: '30%',
+    minWidth: 96,
+    backgroundColor: 'rgba(255, 255, 255, 0.68)',
+    borderRadius: 14,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    marginBottom: 6,
     marginHorizontal: 4,
-    marginVertical: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.5)',
   },
-  summaryPrimaryRow: {
+  summaryTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   summaryIconWrapper: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -1129,48 +1121,41 @@ const styles = StyleSheet.create({
     backgroundColor: '#FF8A65',
   },
   summaryValue: {
-    fontSize: 18,
-    fontWeight: '800',
+    fontSize: 14,
+    fontWeight: '700',
     color: '#0B1A33',
-    marginStart: 10,
-  },
-  summaryTextBlock: {
-    marginTop: 4,
+    marginStart: 8,
   },
   summaryLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#2F3E57',
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#4A5A78',
+    marginTop: 4,
   },
   summarySubLabel: {
-    fontSize: 10,
-    color: '#5C6E88',
+    fontSize: 9,
+    color: '#7A869A',
     marginTop: 2,
   },
   content: {
     flex: 1,
     marginTop: 12,
-    paddingBottom: 16,
+    paddingBottom: 40,
   },
   eventsSurface: {
     flex: 1,
-    backgroundColor: 'rgba(244, 247, 253, 0.94)',
+    backgroundColor: 'rgba(246, 248, 253, 0.82)',
     borderRadius: 28,
-    paddingTop: 16,
-    paddingHorizontal: 10,
-    paddingBottom: 24,
+    paddingTop: 12,
+    paddingHorizontal: 8,
+    paddingBottom: 16,
     borderWidth: 1,
-    borderColor: 'rgba(12, 28, 52, 0.05)',
+    borderColor: 'rgba(255, 255, 255, 0.65)',
     shadowColor: '#0F1F38',
     shadowOpacity: 0.08,
     shadowOffset: { width: 0, height: 10 },
     shadowRadius: 20,
     elevation: 4,
-  },
-  eventsSurfaceDrawerOpen: {
-    shadowOpacity: 0,
-    elevation: 0,
-    opacity: 0.4,
   },
   emptyStateWrapper: {
     flex: 1,
@@ -1194,11 +1179,13 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   filtersPanel: {
-    backgroundColor: 'rgba(255, 255, 255, 0.68)',
+    backgroundColor: 'rgba(255, 255, 255, 0.75)',
     borderRadius: 20,
     paddingVertical: 12,
     paddingHorizontal: 10,
     marginBottom: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(16, 32, 54, 0.08)',
   },
   filtersHideButton: {
     flexDirection: 'row',
@@ -1222,7 +1209,7 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   listContent: {
-    paddingBottom: 140,
+    paddingBottom: 220,
     paddingTop: 4,
     paddingHorizontal: 4,
   },
