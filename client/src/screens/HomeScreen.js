@@ -42,29 +42,6 @@ import {
   appendNotificationToStorage,
 } from '../utils/notifications';
 
-const composeUserDisplayName = (user) => {
-  if (!user) return 'ללא שם';
-
-  const rawFirst = typeof user.name === 'string' ? user.name.trim() : '';
-  const rawLast = typeof user.lastName === 'string' ? user.lastName.trim() : '';
-  const username = typeof user.username === 'string' ? user.username.trim() : '';
-
-  let firstName = rawFirst;
-  let lastName = rawLast;
-
-  if (!lastName && rawFirst.includes(' ')) {
-    const parts = rawFirst.split(' ').filter(Boolean);
-    firstName = parts.shift() || '';
-    lastName = parts.join(' ');
-  }
-
-  const combined = `${firstName} ${lastName}`.trim();
-  if (combined) return combined;
-  if (rawFirst) return rawFirst;
-  if (username) return username;
-  return 'ללא שם';
-};
-
 const getCurrentTimeOfDay = () => {
   const hour = new Date().getHours();
   if (hour < 12) return 'בוקר';
@@ -113,12 +90,12 @@ const isEventExpired = (event) => {
 const formatExpirationCountdown = (event) => {
   const expiresAt = parseDateSafely(event?.expiresAt);
   if (!expiresAt) {
-    return { label: '', isExpired: false };
+    return { label: '', isExpired: false, tone: 'none' };
   }
 
   const diffMs = expiresAt.getTime() - Date.now();
   if (diffMs <= 0) {
-    return { label: 'האירוע הסתיים', isExpired: true };
+    return { label: 'האירוע הסתיים', isExpired: true, tone: 'expired' };
   }
 
   const totalMinutes = Math.floor(diffMs / 60000);
@@ -126,13 +103,54 @@ const formatExpirationCountdown = (event) => {
   const hours = Math.floor((totalMinutes % (60 * 24)) / 60);
   const minutes = totalMinutes % 60;
 
+  const parts = [];
   if (days > 0) {
-    return { label: ` ${days} ימים ו-${hours} שעות`, isExpired: false };
+    parts.push(`${days} ${days === 1 ? 'יום' : 'ימים'}`);
   }
   if (hours > 0) {
-    return { label: ` ${hours} שעות ו-${minutes} דקות`, isExpired: false };
+    parts.push(`${hours} ${hours === 1 ? 'שעה' : 'שעות'}`);
   }
-  return { label: ` ${minutes} דקות`, isExpired: false };
+  if (days === 0 && minutes > 0) {
+    parts.push(`${minutes} ${minutes === 1 ? 'דקה' : 'דקות'}`);
+  }
+
+  const label = parts.length > 0 ? `נותרו ${parts.join(' ו-')}` : 'נותרה פחות מדקה';
+
+  let tone = 'info';
+  if (diffMs <= 60 * 60 * 1000) {
+    tone = 'urgent';
+  } else if (diffMs <= 24 * 60 * 60 * 1000) {
+    tone = 'warning';
+  }
+
+  return { label, isExpired: false, tone };
+};
+
+const formatLastPressLabel = (event) => {
+  const lastPress = getLastPress(event);
+  if (!lastPress || lastPress.getTime() === 0) {
+    return 'עדיין לא נרשמו לחיצות';
+  }
+
+  const diffMs = Date.now() - lastPress.getTime();
+  const minutes = Math.floor(diffMs / 60000);
+  if (minutes < 1) return 'לפני פחות מדקה';
+  if (minutes < 60) return `לפני ${minutes} ${minutes === 1 ? 'דקה' : 'דקות'}`;
+
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `לפני ${hours} ${hours === 1 ? 'שעה' : 'שעות'}`;
+
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `לפני ${days} ${days === 1 ? 'יום' : 'ימים'}`;
+
+  const weeks = Math.floor(days / 7);
+  if (weeks < 4) return `לפני ${weeks} ${weeks === 1 ? 'שבוע' : 'שבועות'}`;
+
+  const months = Math.floor(days / 30);
+  if (months < 12) return `לפני ${months} ${months === 1 ? 'חודש' : 'חודשים'}`;
+
+  const years = Math.floor(days / 365);
+  return `לפני ${years} ${years === 1 ? 'שנה' : 'שנים'}`;
 };
 
 const buildSummaryMessage = (event, summary) => {
@@ -181,7 +199,6 @@ const HomeScreen = () => {
 
   const [eventForDelete, setEventForDelete] = useState(null);
 
-  const [userName, setUserName] = useState('');
   const [userObj, setUserObj] = useState(null);
 
   const [sidebarVisible, setSidebarVisible] = useState(false);
@@ -192,6 +209,9 @@ const HomeScreen = () => {
   const [showShared, setShowShared] = useState(true);
   const [sortModalVisible, setSortModalVisible] = useState(false);
   const [sortMode, setSortMode] = useState('none');
+  const [filtersVisible, setFiltersVisible] = useState(false);
+
+  const filtersVisibleRef = useRef(filtersVisible);
 
   const clickTimeout = useRef(null);
   const hasEvents = events.length > 0;
@@ -276,7 +296,6 @@ const HomeScreen = () => {
 
     try {
       const parsedUser = JSON.parse(storedUser);
-      setUserName(composeUserDisplayName(parsedUser));
       setUserObj(parsedUser);
     } catch (error) {
       console.error('שגיאה בפענוח נתוני משתמש:', error);
@@ -302,6 +321,22 @@ const HomeScreen = () => {
       refreshUnread();
     }
   }, [sidebarVisible, refreshUnread]);
+
+  useEffect(() => {
+    filtersVisibleRef.current = filtersVisible;
+  }, [filtersVisible]);
+
+  useEffect(() => {
+    if (!hasEvents && filtersVisibleRef.current) {
+      setFiltersVisible(false);
+    }
+  }, [hasEvents]);
+
+  useEffect(() => {
+    if (sidebarVisible && filtersVisibleRef.current) {
+      setFiltersVisible(false);
+    }
+  }, [sidebarVisible]);
 
   useEffect(() => {
     return () => {
@@ -692,10 +727,75 @@ const HomeScreen = () => {
         return {
           ...event,
           expirationLabel: countdown.label,
+          expirationTone: countdown.tone,
           isExpired: countdown.isExpired,
+          lastPressLabel: formatLastPressLabel(event),
         };
       }),
     [events],
+  );
+
+  const eventSummary = useMemo(() => {
+    const total = decoratedEvents.length;
+    const sharedCount = decoratedEvents.filter((event) => event.shared).length;
+    const personalCount = total - sharedCount;
+    const expiringSoon = decoratedEvents.filter(
+      (event) => event.expirationTone === 'urgent' || event.expirationTone === 'warning',
+    ).length;
+    const expiredCount = decoratedEvents.filter((event) => event.isExpired).length;
+
+    return { total, sharedCount, personalCount, expiringSoon, expiredCount };
+  }, [decoratedEvents]);
+
+  const displayName = useMemo(() => {
+    if (!userObj) return 'משתמש';
+
+    const name = (userObj.name || '').trim();
+    const first = (userObj.firstName || '').trim();
+    const username = (userObj.username || '').trim();
+
+    if (name) {
+      return name.split(' ')[0];
+    }
+    if (first) {
+      return first;
+    }
+    if (username) {
+      return username;
+    }
+
+    return 'משתמש';
+  }, [userObj]);
+
+  const summaryCards = useMemo(
+    () => [
+      {
+        key: 'total',
+        label: 'סה"כ אירועים',
+        value: eventSummary.total,
+        subLabel: `${eventSummary.personalCount} אישיים`,
+        icon: 'grid-outline',
+      },
+      {
+        key: 'shared',
+        label: 'אירועים משותפים',
+        value: eventSummary.sharedCount,
+        subLabel:
+          eventSummary.sharedCount > 0 ? 'מתואמים עם הצוות' : 'עוד אין אירועים משותפים',
+        icon: 'people-outline',
+      },
+      {
+        key: 'expiring',
+        label: 'מתקרבים לסיום',
+        value: eventSummary.expiringSoon,
+        subLabel:
+          eventSummary.expiredCount > 0
+            ? `${eventSummary.expiredCount} כבר הסתיימו`
+            : 'מעודכן בזמן אמת',
+        icon: 'time-outline',
+      },
+    ],
+    [eventSummary],
   );
 
   const displayedEvents = useMemo(
@@ -721,81 +821,159 @@ const HomeScreen = () => {
     setSortMode(mode);
   }, []);
 
+  const handleRevealFilters = useCallback(() => {
+    setFiltersVisible(true);
+  }, []);
+
+  const handleHideFilters = useCallback(() => {
+    setFiltersVisible(false);
+  }, []);
+
+  const handleListScroll = useCallback((event) => {
+    const offsetY = event?.nativeEvent?.contentOffset?.y ?? 0;
+    if (offsetY < -70 && !filtersVisibleRef.current) {
+      setFiltersVisible(true);
+    } else if (offsetY > 20 && filtersVisibleRef.current) {
+      setFiltersVisible(false);
+    }
+  }, []);
+
   return (
     <ImageBackground
       source={require('../../assets/images/main-background.png')}
       style={styles.fullBackground}
       resizeMode="cover"
     >
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => {
-            setSidebarInitialTab(0);
-            setSidebarVisible(true);
-          }}
-          style={styles.menuBtn}
-          activeOpacity={0.7}
+      <View style={styles.backgroundOverlay} pointerEvents="none" />
+      <View style={styles.screenContainer}>
+        <View
+          style={[styles.headerBar, sidebarVisible && styles.headerBarDisabled]}
+          pointerEvents={sidebarVisible ? 'none' : 'auto'}
         >
-          <Text style={styles.menuIcon}>☰</Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => {
+              setSidebarInitialTab(0);
+              setSidebarVisible(true);
+            }}
+            style={styles.iconButton}
+            activeOpacity={0.7}
+            accessibilityLabel="פתח תפריט"
+          >
+            <Ionicons name="menu" size={24} color="#0B1A33" />
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          onPress={() => {
-            setSidebarInitialTab('notifications');
-            setSidebarVisible(true);
-          }}
-          style={styles.bellBtn}
-          activeOpacity={0.7}
-          accessibilityLabel="פתח התראות"
-        >
-          <Ionicons name="notifications-outline" size={22} color="#000" />
-          {hasUnreadNotif && <View style={styles.bellDot} />}
-        </TouchableOpacity>
+          <View style={styles.headerCenter}>
+            <Image source={require('../../assets/images/logo1.png')} style={styles.headerLogo} />
+            <Text style={styles.greetingText}>שלום {displayName}</Text>
+          </View>
 
-        <Image source={require('../../assets/images/logo1.png')} style={styles.logo} />
-        <Text style={styles.welcome}>ברוך הבא, {userName}</Text>
+          <TouchableOpacity
+            onPress={() => {
+              setSidebarInitialTab('notifications');
+              setSidebarVisible(true);
+            }}
+            style={styles.iconButton}
+            activeOpacity={0.7}
+            accessibilityLabel="פתח התראות"
+          >
+            <Ionicons name="notifications-outline" size={24} color="#0B1A33" />
+            {hasUnreadNotif && <View style={styles.bellDot} />}
+          </TouchableOpacity>
+        </View>
+
+        {!sidebarVisible && eventSummary.total > 0 && (
+          <View style={styles.summaryRow}>
+            {summaryCards.map((card) => (
+              <View key={card.key} style={styles.summaryCard}>
+                <View style={styles.summaryTopRow}>
+                  <View
+                    style={[styles.summaryIconWrapper, styles[`summaryIconWrapper_${card.key}`]]}
+                  >
+                    <Ionicons name={card.icon} size={16} color="#fff" />
+                  </View>
+                  <Text style={styles.summaryValue}>{card.value}</Text>
+                </View>
+                <Text style={styles.summaryLabel}>{card.label}</Text>
+                {card.subLabel ? <Text style={styles.summarySubLabel}>{card.subLabel}</Text> : null}
+              </View>
+            ))}
+          </View>
+        )}
+
+        {!hasEvents ? (
+          <View style={styles.emptyStateWrapper}>
+            <EmptyEventsState onAddEvent={() => navigation.navigate('AddEvent')} />
+          </View>
+        ) : (
+          <View style={styles.content}>
+            <View style={styles.eventsSurface}>
+              <TouchableOpacity
+                onPress={handleRevealFilters}
+                activeOpacity={0.7}
+                style={styles.filtersHandleContainer}
+                disabled={sidebarVisible}
+              >
+                <View style={styles.filtersHandle} />
+                {!filtersVisible && (
+                  <Text style={styles.filtersHandleText}>משכו מטה כדי להציג מסננים</Text>
+                )}
+              </TouchableOpacity>
+
+              {filtersVisible && (
+                <View style={styles.filtersPanel}>
+                  <EventsFilterBar
+                    showPersonal={showPersonal}
+                    showShared={showShared}
+                    onTogglePersonal={handleTogglePersonal}
+                    onToggleShared={handleToggleShared}
+                    onOpenSort={() => setSortModalVisible(true)}
+                  />
+                  <TouchableOpacity
+                    onPress={handleHideFilters}
+                    style={styles.filtersHideButton}
+                    activeOpacity={0.7}
+                    disabled={sidebarVisible}
+                  >
+                    <Ionicons name="chevron-up" size={16} color="#3D4E68" />
+                    <Text style={styles.filtersHideText}>הסתר מסננים</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              <FlatList
+                style={styles.eventsList}
+                data={displayedEvents}
+                numColumns={2}
+                columnWrapperStyle={styles.columnWrapper}
+                keyExtractor={(item) => item._id}
+                renderItem={({ item }) => (
+                  <EventButton
+                    item={item}
+                    isEditMode={isEditMode}
+                    onPress={() => handlePress(item)}
+                    onLongPress={() => handleLongPress(item)}
+                    onEditName={() => handleOpenEditName(item)}
+                    onEditColor={() => handleOpenEditColor(item)}
+                    onDelete={() => setEventForDelete(item)}
+                  />
+                )}
+                contentContainerStyle={styles.listContent}
+                onScroll={handleListScroll}
+                scrollEventThrottle={16}
+              />
+            </View>
+          </View>
+        )}
       </View>
 
-      {!hasEvents ? (
-        <EmptyEventsState onAddEvent={() => navigation.navigate('AddEvent')} />
-      ) : (
-        <View style={styles.content}>
-          <TopActionsBar
-            isEditMode={isEditMode}
-            onToggleEdit={() => setIsEditMode((prev) => !prev)}
-            onViewLogs={() => navigation.navigate('Logs')}
-            onAddEvent={() => navigation.navigate('AddEvent')}
-            disabled={sidebarVisible}
-          />
-
-          <EventsFilterBar
-            showPersonal={showPersonal}
-            showShared={showShared}
-            onTogglePersonal={handleTogglePersonal}
-            onToggleShared={handleToggleShared}
-            onOpenSort={() => setSortModalVisible(true)}
-          />
-
-          <FlatList
-            data={displayedEvents}
-            numColumns={2}
-            columnWrapperStyle={{ justifyContent: 'space-between' }}
-            keyExtractor={(item) => item._id}
-            renderItem={({ item }) => (
-              <EventButton
-                item={item}
-                isEditMode={isEditMode}
-                onPress={() => handlePress(item)}
-                onLongPress={() => handleLongPress(item)}
-                onEditName={() => handleOpenEditName(item)}
-                onEditColor={() => handleOpenEditColor(item)}
-                onDelete={() => setEventForDelete(item)}
-              />
-            )}
-            contentContainerStyle={styles.listContent}
-          />
-        </View>
-      )}
+      <TopActionsBar
+        style={styles.bottomToolbar}
+        isEditMode={isEditMode}
+        onToggleEdit={() => setIsEditMode((prev) => !prev)}
+        onViewLogs={() => navigation.navigate('Logs')}
+        onAddEvent={() => navigation.navigate('AddEvent')}
+        disabled={sidebarVisible}
+      />
 
       <ColorPickerModal
         visible={Boolean(selectedEventForColor)}
@@ -841,66 +1019,206 @@ const styles = StyleSheet.create({
     flex: 1,
     resizeMode: 'cover',
   },
-  header: {
+  backgroundOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(12, 24, 45, 0.08)',
+  },
+  screenContainer: {
+    flex: 1,
+    paddingTop: 60,
+    paddingHorizontal: 18,
+    paddingBottom: 160,
+  },
+  headerBar: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 20,
-    paddingTop: 8,
+    justifyContent: 'space-between',
   },
-  menuBtn: {
-    position: 'absolute',
-    left: 20,
-    top: 60,
-    zIndex: 10,
-    backgroundColor: 'rgba(255,255,255,0.8)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#eee',
+  headerBarDisabled: {
+    opacity: 0,
   },
-  menuIcon: {
-    fontSize: 22,
+  iconButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.92)',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 8,
+    elevation: 4,
   },
-  bellBtn: {
-    position: 'absolute',
-    right: 20,
-    top: 60,
-    zIndex: 10,
-    backgroundColor: 'rgba(255,255,255,0.8)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#eee',
+  headerCenter: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerLogo: {
+    width: 180,
+    height: 60,
+    resizeMode: 'contain',
+  },
+  greetingText: {
+    marginTop: 6,
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#132542',
   },
   bellDot: {
     position: 'absolute',
-    top: 2,
-    right: 2,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    top: 8,
+    right: 10,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
     backgroundColor: '#E53935',
+    borderWidth: 1,
+    borderColor: '#fff',
   },
-  logo: {
-    width: 200,
-    height: 200,
-    resizeMode: 'contain',
-    marginBottom: -60,
-    marginTop: -40,
+  summaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 16,
+    flexWrap: 'wrap',
+    paddingVertical: 4,
+    paddingHorizontal: 6,
+    backgroundColor: 'rgba(16, 32, 54, 0.05)',
+    borderRadius: 18,
   },
-  welcome: {
-    fontSize: 15,
-    fontWeight: 'bold',
-    color: '#333',
-    textAlign: 'center',
-    marginTop: -25,
+  summaryCard: {
+    flexBasis: '30%',
+    minWidth: 96,
+    backgroundColor: 'rgba(255, 255, 255, 0.68)',
+    borderRadius: 14,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    marginBottom: 6,
+    marginHorizontal: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.5)',
+  },
+  summaryTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  summaryIconWrapper: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  summaryIconWrapper_total: {
+    backgroundColor: '#3DD6D0',
+  },
+  summaryIconWrapper_shared: {
+    backgroundColor: '#7C5CFF',
+  },
+  summaryIconWrapper_expiring: {
+    backgroundColor: '#FF8A65',
+  },
+  summaryValue: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#0B1A33',
+    marginStart: 8,
+  },
+  summaryLabel: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#4A5A78',
+    marginTop: 4,
+  },
+  summarySubLabel: {
+    fontSize: 9,
+    color: '#7A869A',
+    marginTop: 2,
   },
   content: {
     flex: 1,
+    marginTop: 12,
+    paddingBottom: 40,
+  },
+  eventsSurface: {
+    flex: 1,
+    backgroundColor: 'rgba(246, 248, 253, 0.82)',
+    borderRadius: 28,
+    paddingTop: 12,
+    paddingHorizontal: 8,
+    paddingBottom: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.65)',
+    shadowColor: '#0F1F38',
+    shadowOpacity: 0.08,
+    shadowOffset: { width: 0, height: 10 },
+    shadowRadius: 20,
+    elevation: 4,
+  },
+  emptyStateWrapper: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingBottom: 160,
+  },
+  filtersHandleContainer: {
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  filtersHandle: {
+    width: 50,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: 'rgba(16, 32, 54, 0.18)',
+    marginBottom: 4,
+  },
+  filtersHandleText: {
+    fontSize: 11,
+    color: '#3D4E68',
+    fontWeight: '600',
+  },
+  filtersPanel: {
+    backgroundColor: 'rgba(255, 255, 255, 0.75)',
+    borderRadius: 20,
+    paddingVertical: 12,
     paddingHorizontal: 10,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(16, 32, 54, 0.08)',
+  },
+  filtersHideButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'center',
+    marginTop: 4,
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: 12,
+    backgroundColor: 'rgba(16, 32, 54, 0.06)',
+  },
+  filtersHideText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#3D4E68',
+    marginStart: 4,
+  },
+  columnWrapper: {
+    justifyContent: 'space-between',
+    paddingHorizontal: 6,
+    marginBottom: 14,
   },
   listContent: {
-    paddingBottom: 80,
+    paddingBottom: 220,
+    paddingTop: 4,
+    paddingHorizontal: 4,
+  },
+  eventsList: {
+    flex: 1,
+  },
+  bottomToolbar: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 20,
   },
 });

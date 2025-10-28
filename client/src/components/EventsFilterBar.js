@@ -9,76 +9,96 @@ const EventsFilterBar = ({
   onToggleShared,
   onOpenSort,
 }) => (
-  <View style={styles.container}>
-    <TouchableOpacity
-      style={[styles.filterPill, showPersonal && styles.filterPillActive]}
-      onPress={onTogglePersonal}
-      activeOpacity={0.85}
-    >
-      <Text style={[styles.filterPillText, showPersonal && styles.filterPillTextActive]}>
-        👤 אירועים אישיים
-      </Text>
-    </TouchableOpacity>
+  <View style={styles.wrapper}>
+    <View style={styles.container}>
+      <TouchableOpacity
+        style={[styles.segment, showPersonal && styles.segmentActivePersonal]}
+        onPress={onTogglePersonal}
+        activeOpacity={0.85}
+      >
+        <Ionicons
+          name={showPersonal ? 'person' : 'person-outline'}
+          size={16}
+          color={showPersonal ? '#0B69FF' : '#3A4A5F'}
+          style={styles.segmentIcon}
+        />
+        <Text style={[styles.segmentText, showPersonal && styles.segmentTextActive]}>אישי</Text>
+      </TouchableOpacity>
 
-    <TouchableOpacity
-      style={[styles.filterPill, showShared && styles.filterPillActive]}
-      onPress={onToggleShared}
-      activeOpacity={0.85}
-    >
-      <Text style={[styles.filterPillText, showShared && styles.filterPillTextActive]}>
-        🤝 אירועים משותפים
-      </Text>
-    </TouchableOpacity>
+      <TouchableOpacity
+        style={[styles.segment, showShared && styles.segmentActiveShared]}
+        onPress={onToggleShared}
+        activeOpacity={0.85}
+      >
+        <Ionicons
+          name={showShared ? 'people' : 'people-outline'}
+          size={16}
+          color={showShared ? '#673AB7' : '#3A4A5F'}
+          style={styles.segmentIcon}
+        />
+        <Text style={[styles.segmentText, showShared && styles.segmentTextActiveShared]}>משותף</Text>
+      </TouchableOpacity>
 
-    <TouchableOpacity
-      style={styles.filterIconBtn}
-      onPress={onOpenSort}
-      activeOpacity={0.85}
-      accessibilityLabel="סינון ומיון אירועים"
-    >
-      <Ionicons name="filter-outline" size={22} color="#333" />
-    </TouchableOpacity>
+      <TouchableOpacity
+        style={styles.segment}
+        onPress={onOpenSort}
+        activeOpacity={0.85}
+        accessibilityLabel="סינון ומיון אירועים"
+      >
+        <Ionicons name="funnel-outline" size={17} color="#3A4A5F" style={styles.segmentIcon} />
+        <Text style={styles.segmentText}>מיון</Text>
+      </TouchableOpacity>
+    </View>
   </View>
 );
 
 const styles = StyleSheet.create({
+  wrapper: {
+    paddingHorizontal: 4,
+  },
   container: {
     flexDirection: 'row-reverse',
     alignItems: 'center',
-    gap: 8,
-    marginBottom: 8,
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(16, 32, 54, 0.06)',
+    borderRadius: 18,
+    padding: 6,
+    gap: 6,
   },
-  filterPill: {
+  segment: {
     flex: 1,
-    paddingVertical: 10,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    backgroundColor: '#f7f7f7',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  filterPillActive: {
-    backgroundColor: '#eef6ff',
-    borderColor: '#bcd9ff',
-  },
-  filterPillText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
-  },
-  filterPillTextActive: {
-    color: '#0b69ff',
-  },
-  filterIconBtn: {
-    width: 44,
     height: 44,
-    borderRadius: 12,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255, 255, 255, 0.65)',
     borderWidth: 1,
-    borderColor: '#ddd',
-    backgroundColor: '#fff',
+    borderColor: 'rgba(16, 32, 54, 0.08)',
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: 12,
+  },
+  segmentActivePersonal: {
+    backgroundColor: 'rgba(11, 105, 255, 0.12)',
+    borderColor: 'rgba(11, 105, 255, 0.32)',
+  },
+  segmentActiveShared: {
+    backgroundColor: 'rgba(103, 58, 183, 0.14)',
+    borderColor: 'rgba(103, 58, 183, 0.32)',
+  },
+  segmentIcon: {
+    marginEnd: 6,
+  },
+  segmentText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#3A4A5F',
+    textAlign: 'center',
+  },
+  segmentTextActive: {
+    color: '#0B69FF',
+  },
+  segmentTextActiveShared: {
+    color: '#673AB7',
   },
 });
 
