@@ -24,8 +24,7 @@ export default function AddEventScreen() {
 
   const [name, setName] = useState('');
   const [color, setColor] = useState('#000000');
-
-  const [hasExpiration, setHasExpiration] = useState(false);
+  const [isTemporary, setIsTemporary] = useState(false);
   const [expirationDate, setExpirationDate] = useState(() => {
     const initial = new Date();
     initial.setHours(23, 59, 0, 0);
@@ -49,13 +48,24 @@ export default function AddEventScreen() {
     );
   };
 
+  const handleToggleTemporary = () => {
+    setIsTemporary((prev) => {
+      const next = !prev;
+      if (!next) {
+        setShowDatePicker(false);
+        setShowTimePicker(false);
+      }
+      return next;
+    });
+  };
+
   const formattedExpiration = useMemo(() => {
-    if (!hasExpiration || !expirationDate) return 'ללא תפוגה';
+    if (!expirationDate) return 'ללא תפוגה';
     const d = expirationDate;
     const date = d.toLocaleDateString('he-IL', { year: 'numeric', month: '2-digit', day: '2-digit' });
     const time = d.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', hour12: false });
     return `${date} בשעה ${time}`;
-  }, [expirationDate, hasExpiration]);
+  }, [expirationDate]);
 
   const handleAddEvent = async () => {
     if (!name.trim()) {
@@ -67,7 +77,7 @@ export default function AddEventScreen() {
       return;
     }
 
-    if (hasExpiration) {
+    if (isTemporary) {
       const now = new Date();
       if (!expirationDate || expirationDate <= now) {
         Alert.alert('אנא בחר תאריך תפוגה עתידי עבור האירוע');
@@ -80,11 +90,12 @@ export default function AddEventScreen() {
       color,
       totalColor: 0,
       shared: isShared,
-      ...(hasExpiration
+      type: isTemporary ? 'temporary' : 'regular',
+      ...(isTemporary
         ? {
-          expiresAt: expirationDate.toISOString(),
-          expirationDurationMs: Math.max(expirationDate.getTime() - Date.now(), 0),
-        }
+            expiresAt: expirationDate.toISOString(),
+            expirationDurationMs: Math.max(expirationDate.getTime() - Date.now(), 0),
+          }
         : { expiresAt: null, expirationDurationMs: null }),
     };
 
@@ -170,17 +181,23 @@ export default function AddEventScreen() {
       </View>
 
       <View style={styles.sectionCard}>
+        <Text style={styles.label}>סוג האירוע</Text>
         <TouchableOpacity
-          style={[styles.actionToggle, hasExpiration && styles.actionToggleActive]}
-          onPress={() => setHasExpiration((prev) => !prev)}
+          style={[styles.actionToggle, isTemporary && styles.actionToggleActive]}
+          onPress={handleToggleTemporary}
           activeOpacity={0.9}
         >
-          <Text style={[styles.actionToggleText, hasExpiration && styles.actionToggleTextActive]}>
-            {hasExpiration ? '⏰ תפוגת אירוע פעילה' : '⏰ הגדרת תפוגה לאירוע'}
+          <Text style={[styles.actionToggleText, isTemporary && styles.actionToggleTextActive]}>
+            {isTemporary ? '⚡ אירוע זמני פעיל' : '⚡ הפכו את האירוע לזמני'}
           </Text>
         </TouchableOpacity>
-
-        {hasExpiration && (
+        <Text style={styles.helperText}>
+          אירועים זמניים נועדו לתיעודים קצרי טווח ויופיעו במסך התיעודים לתפעול מהיר.
+        </Text>
+        <Text style={styles.helperText}>
+          לאחר הפעלת המצב תוכלו להגדיר תאריך ושעת תפוגה מותאמים.
+        </Text>
+        {isTemporary && (
           <View style={styles.expirationBox}>
             <Text style={styles.expirationLabel}>התפוגה הנוכחית</Text>
             <Text style={styles.expirationValue}>{formattedExpiration}</Text>
@@ -205,7 +222,7 @@ export default function AddEventScreen() {
         )}
       </View>
 
-      {showDatePicker && (
+      {isTemporary && showDatePicker && (
         <DateTimePicker
           value={expirationDate}
           mode="date"
@@ -225,7 +242,7 @@ export default function AddEventScreen() {
         />
       )}
 
-      {showTimePicker && (
+      {isTemporary && showTimePicker && (
         <DateTimePicker
           value={expirationDate}
           mode="time"
@@ -373,6 +390,12 @@ const styles = StyleSheet.create({
     color: '#52616f',
     textAlign: 'right',
   },
+  helperText: {
+    fontSize: 13,
+    color: '#6b7a8f',
+    textAlign: 'right',
+    lineHeight: 18,
+  },
   actionToggle: {
     width: '100%',
     paddingVertical: 14,
@@ -388,6 +411,18 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 3,
     elevation: 2,
+  },
+  actionToggleActive: {
+    borderColor: ACCENT,
+    backgroundColor: '#e7fbfa',
+  },
+  actionToggleText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1f2933',
+  },
+  actionToggleTextActive: {
+    color: ACCENT_DARK,
   },
   expirationLabel: {
     fontSize: 15,
