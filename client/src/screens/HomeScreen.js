@@ -113,12 +113,12 @@ const isEventExpired = (event) => {
 const formatExpirationCountdown = (event) => {
   const expiresAt = parseDateSafely(event?.expiresAt);
   if (!expiresAt) {
-    return { label: '', isExpired: false, tone: 'none' };
+    return { label: '', isExpired: false };
   }
 
   const diffMs = expiresAt.getTime() - Date.now();
   if (diffMs <= 0) {
-    return { label: 'האירוע הסתיים', isExpired: true, tone: 'expired' };
+    return { label: 'האירוע הסתיים', isExpired: true };
   }
 
   const totalMinutes = Math.floor(diffMs / 60000);
@@ -126,54 +126,13 @@ const formatExpirationCountdown = (event) => {
   const hours = Math.floor((totalMinutes % (60 * 24)) / 60);
   const minutes = totalMinutes % 60;
 
-  const parts = [];
   if (days > 0) {
-    parts.push(`${days} ${days === 1 ? 'יום' : 'ימים'}`);
+    return { label: ` ${days} ימים ו-${hours} שעות`, isExpired: false };
   }
   if (hours > 0) {
-    parts.push(`${hours} ${hours === 1 ? 'שעה' : 'שעות'}`);
+    return { label: ` ${hours} שעות ו-${minutes} דקות`, isExpired: false };
   }
-  if (days === 0 && minutes > 0) {
-    parts.push(`${minutes} ${minutes === 1 ? 'דקה' : 'דקות'}`);
-  }
-
-  const label = parts.length > 0 ? `נותרו ${parts.join(' ו-')}` : 'נותרה פחות מדקה';
-
-  let tone = 'info';
-  if (diffMs <= 60 * 60 * 1000) {
-    tone = 'urgent';
-  } else if (diffMs <= 24 * 60 * 60 * 1000) {
-    tone = 'warning';
-  }
-
-  return { label, isExpired: false, tone };
-};
-
-const formatLastPressLabel = (event) => {
-  const lastPress = getLastPress(event);
-  if (!lastPress || lastPress.getTime() === 0) {
-    return 'עדיין לא נרשמו לחיצות';
-  }
-
-  const diffMs = Date.now() - lastPress.getTime();
-  const minutes = Math.floor(diffMs / 60000);
-  if (minutes < 1) return 'לפני פחות מדקה';
-  if (minutes < 60) return `לפני ${minutes} ${minutes === 1 ? 'דקה' : 'דקות'}`;
-
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `לפני ${hours} ${hours === 1 ? 'שעה' : 'שעות'}`;
-
-  const days = Math.floor(hours / 24);
-  if (days < 7) return `לפני ${days} ${days === 1 ? 'יום' : 'ימים'}`;
-
-  const weeks = Math.floor(days / 7);
-  if (weeks < 4) return `לפני ${weeks} ${weeks === 1 ? 'שבוע' : 'שבועות'}`;
-
-  const months = Math.floor(days / 30);
-  if (months < 12) return `לפני ${months} ${months === 1 ? 'חודש' : 'חודשים'}`;
-
-  const years = Math.floor(days / 365);
-  return `לפני ${years} ${years === 1 ? 'שנה' : 'שנים'}`;
+  return { label: ` ${minutes} דקות`, isExpired: false };
 };
 
 const buildSummaryMessage = (event, summary) => {
@@ -236,17 +195,6 @@ const HomeScreen = () => {
 
   const clickTimeout = useRef(null);
   const hasEvents = events.length > 0;
-  const greetingTime = useMemo(() => getCurrentTimeOfDay(), []);
-  const currentDayOfWeek = useMemo(() => getCurrentDayOfWeek(), []);
-  const formattedDate = useMemo(
-    () =>
-      new Date().toLocaleDateString('he-IL', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-      }),
-    [],
-  );
 
   const ensureDemoNotification = useCallback(async () => {
     const existing = await loadNotificationsFromStorage();
@@ -744,55 +692,10 @@ const HomeScreen = () => {
         return {
           ...event,
           expirationLabel: countdown.label,
-          expirationTone: countdown.tone,
           isExpired: countdown.isExpired,
-          lastPressLabel: formatLastPressLabel(event),
         };
       }),
     [events],
-  );
-
-  const eventSummary = useMemo(() => {
-    const total = decoratedEvents.length;
-    const sharedCount = decoratedEvents.filter((event) => event.shared).length;
-    const personalCount = total - sharedCount;
-    const expiringSoon = decoratedEvents.filter(
-      (event) => event.expirationTone === 'urgent' || event.expirationTone === 'warning',
-    ).length;
-    const expiredCount = decoratedEvents.filter((event) => event.isExpired).length;
-
-    return { total, sharedCount, personalCount, expiringSoon, expiredCount };
-  }, [decoratedEvents]);
-
-  const summaryCards = useMemo(
-    () => [
-      {
-        key: 'total',
-        label: 'סה"כ אירועים',
-        value: eventSummary.total,
-        subLabel: `${eventSummary.personalCount} אישיים`,
-        icon: 'grid-outline',
-      },
-      {
-        key: 'shared',
-        label: 'אירועים משותפים',
-        value: eventSummary.sharedCount,
-        subLabel:
-          eventSummary.sharedCount > 0 ? 'מתואמים עם הצוות' : 'עוד אין אירועים משותפים',
-        icon: 'people-outline',
-      },
-      {
-        key: 'expiring',
-        label: 'מתקרבים לסיום',
-        value: eventSummary.expiringSoon,
-        subLabel:
-          eventSummary.expiredCount > 0
-            ? `${eventSummary.expiredCount} כבר הסתיימו`
-            : 'מעודכן בזמן אמת',
-        icon: 'time-outline',
-      },
-    ],
-    [eventSummary],
   );
 
   const displayedEvents = useMemo(
@@ -824,119 +727,75 @@ const HomeScreen = () => {
       style={styles.fullBackground}
       resizeMode="cover"
     >
-      <View style={styles.backgroundOverlay} pointerEvents="none" />
-      <View style={styles.screenContainer}>
-        <View style={styles.headerBar}>
-          <TouchableOpacity
-            onPress={() => {
-              setSidebarInitialTab(0);
-              setSidebarVisible(true);
-            }}
-            style={styles.iconButton}
-            activeOpacity={0.7}
-            accessibilityLabel="פתח תפריט"
-          >
-            <Ionicons name="menu" size={22} color="#0B1A33" />
-          </TouchableOpacity>
+      <View style={styles.header}>
+        <TouchableOpacity
+          onPress={() => {
+            setSidebarInitialTab(0);
+            setSidebarVisible(true);
+          }}
+          style={styles.menuBtn}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.menuIcon}>☰</Text>
+        </TouchableOpacity>
 
-          <Image source={require('../../assets/images/logo1.png')} style={styles.headerLogo} />
+        <TouchableOpacity
+          onPress={() => {
+            setSidebarInitialTab('notifications');
+            setSidebarVisible(true);
+          }}
+          style={styles.bellBtn}
+          activeOpacity={0.7}
+          accessibilityLabel="פתח התראות"
+        >
+          <Ionicons name="notifications-outline" size={22} color="#000" />
+          {hasUnreadNotif && <View style={styles.bellDot} />}
+        </TouchableOpacity>
 
-          <TouchableOpacity
-            onPress={() => {
-              setSidebarInitialTab('notifications');
-              setSidebarVisible(true);
-            }}
-            style={styles.iconButton}
-            activeOpacity={0.7}
-            accessibilityLabel="פתח התראות"
-          >
-            <Ionicons name="notifications-outline" size={22} color="#0B1A33" />
-            {hasUnreadNotif && <View style={styles.bellDot} />}
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.welcomeCard}>
-          <View>
-            <Text style={styles.welcomeGreeting}>{`${greetingTime} טוב, ${userName}`}</Text>
-            <Text style={styles.welcomeSubheading}>{`היום ${currentDayOfWeek} · ${formattedDate}`}</Text>
-          </View>
-          <View style={styles.welcomeBadge}>
-            <Ionicons name="checkmark-done-outline" size={18} color="#fff" />
-            <Text style={styles.welcomeBadgeText}>{`${eventSummary.total} אירועים פעילים`}</Text>
-          </View>
-        </View>
-
-        {eventSummary.total > 0 && (
-          <View style={styles.summaryRow}>
-            {summaryCards.map((card) => (
-              <View key={card.key} style={styles.summaryCard}>
-                <View style={[styles.summaryIconWrapper, styles[`summaryIconWrapper_${card.key}`]]}>
-                  <Ionicons name={card.icon} size={16} color="#fff" />
-                </View>
-                <Text style={styles.summaryValue}>{card.value}</Text>
-                <Text style={styles.summaryLabel}>{card.label}</Text>
-                {card.subLabel ? <Text style={styles.summarySubLabel}>{card.subLabel}</Text> : null}
-              </View>
-            ))}
-          </View>
-        )}
-
-        {!hasEvents ? (
-          <EmptyEventsState onAddEvent={() => navigation.navigate('AddEvent')} />
-        ) : (
-          <View style={styles.content}>
-            <TopActionsBar
-              isEditMode={isEditMode}
-              onToggleEdit={() => setIsEditMode((prev) => !prev)}
-              onViewLogs={() => navigation.navigate('Logs')}
-              onAddEvent={() => navigation.navigate('AddEvent')}
-              disabled={sidebarVisible}
-            />
-
-            <EventsFilterBar
-              showPersonal={showPersonal}
-              showShared={showShared}
-              onTogglePersonal={handleTogglePersonal}
-              onToggleShared={handleToggleShared}
-              onOpenSort={() => setSortModalVisible(true)}
-            />
-
-            <View style={styles.actionsLegend}>
-              <View style={styles.legendItem}>
-                <Ionicons name="add-circle-outline" size={16} color="#0B1A33" style={styles.legendIcon} />
-                <Text style={styles.legendText}>לחיצה קצרה מוסיפה תיעוד</Text>
-              </View>
-              <View style={styles.legendItem}>
-                <Ionicons name="remove-circle-outline" size={16} color="#0B1A33" style={styles.legendIcon} />
-                <Text style={styles.legendText}>לחיצה כפולה מבטלת תיעוד אחרון</Text>
-              </View>
-              <View style={styles.legendItem}>
-                <Ionicons name="document-text-outline" size={16} color="#0B1A33" style={styles.legendIcon} />
-                <Text style={styles.legendText}>לחיצה ארוכה פותחת רישום מפורט</Text>
-              </View>
-            </View>
-
-            <FlatList
-              data={displayedEvents}
-              numColumns={2}
-              columnWrapperStyle={styles.columnWrapper}
-              keyExtractor={(item) => item._id}
-              renderItem={({ item }) => (
-                <EventButton
-                  item={item}
-                  isEditMode={isEditMode}
-                  onPress={() => handlePress(item)}
-                  onLongPress={() => handleLongPress(item)}
-                  onEditName={() => handleOpenEditName(item)}
-                  onEditColor={() => handleOpenEditColor(item)}
-                  onDelete={() => setEventForDelete(item)}
-                />
-              )}
-              contentContainerStyle={styles.listContent}
-            />
-          </View>
-        )}
+        <Image source={require('../../assets/images/logo1.png')} style={styles.logo} />
+        <Text style={styles.welcome}>ברוך הבא, {userName}</Text>
       </View>
+
+      {!hasEvents ? (
+        <EmptyEventsState onAddEvent={() => navigation.navigate('AddEvent')} />
+      ) : (
+        <View style={styles.content}>
+          <TopActionsBar
+            isEditMode={isEditMode}
+            onToggleEdit={() => setIsEditMode((prev) => !prev)}
+            onViewLogs={() => navigation.navigate('Logs')}
+            onAddEvent={() => navigation.navigate('AddEvent')}
+            disabled={sidebarVisible}
+          />
+
+          <EventsFilterBar
+            showPersonal={showPersonal}
+            showShared={showShared}
+            onTogglePersonal={handleTogglePersonal}
+            onToggleShared={handleToggleShared}
+            onOpenSort={() => setSortModalVisible(true)}
+          />
+
+          <FlatList
+            data={displayedEvents}
+            numColumns={2}
+            columnWrapperStyle={{ justifyContent: 'space-between' }}
+            keyExtractor={(item) => item._id}
+            renderItem={({ item }) => (
+              <EventButton
+                item={item}
+                isEditMode={isEditMode}
+                onPress={() => handlePress(item)}
+                onLongPress={() => handleLongPress(item)}
+                onEditName={() => handleOpenEditName(item)}
+                onEditColor={() => handleOpenEditColor(item)}
+                onDelete={() => setEventForDelete(item)}
+              />
+            )}
+            contentContainerStyle={styles.listContent}
+          />
+        </View>
+      )}
 
       <ColorPickerModal
         visible={Boolean(selectedEventForColor)}
@@ -982,178 +841,66 @@ const styles = StyleSheet.create({
     flex: 1,
     resizeMode: 'cover',
   },
-  backgroundOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(12, 24, 45, 0.08)',
-  },
-  screenContainer: {
-    flex: 1,
-    paddingTop: 70,
-    paddingHorizontal: 20,
-    paddingBottom: 16,
-  },
-  headerBar: {
-    flexDirection: 'row',
+  header: {
     alignItems: 'center',
-    justifyContent: 'space-between',
+    marginBottom: 20,
+    paddingTop: 8,
   },
-  iconButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.92)',
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 8,
-    elevation: 4,
+  menuBtn: {
+    position: 'absolute',
+    left: 20,
+    top: 60,
+    zIndex: 10,
+    backgroundColor: 'rgba(255,255,255,0.8)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#eee',
   },
-  headerLogo: {
-    width: 140,
-    height: 46,
-    resizeMode: 'contain',
+  menuIcon: {
+    fontSize: 22,
+  },
+  bellBtn: {
+    position: 'absolute',
+    right: 20,
+    top: 60,
+    zIndex: 10,
+    backgroundColor: 'rgba(255,255,255,0.8)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#eee',
   },
   bellDot: {
     position: 'absolute',
-    top: 8,
-    right: 10,
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+    top: 2,
+    right: 2,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
     backgroundColor: '#E53935',
-    borderWidth: 1,
-    borderColor: '#fff',
   },
-  welcomeCard: {
-    marginTop: 24,
-    padding: 20,
-    borderRadius: 24,
-    backgroundColor: 'rgba(255, 255, 255, 0.94)',
-    shadowColor: '#001',
-    shadowOpacity: 0.08,
-    shadowOffset: { width: 0, height: 8 },
-    shadowRadius: 12,
-    elevation: 3,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+  logo: {
+    width: 200,
+    height: 200,
+    resizeMode: 'contain',
+    marginBottom: -60,
+    marginTop: -40,
   },
-  welcomeGreeting: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#0B1A33',
-    marginBottom: 6,
-  },
-  welcomeSubheading: {
-    fontSize: 14,
-    color: '#4A5A78',
-    fontWeight: '500',
-  },
-  welcomeBadge: {
-    backgroundColor: '#3DD6D0',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 18,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  welcomeBadgeText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
-    marginStart: 6,
-  },
-  summaryRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 18,
-    flexWrap: 'wrap',
-  },
-  summaryCard: {
-    flexBasis: '31%',
-    minWidth: 110,
-    backgroundColor: 'rgba(255, 255, 255, 0.92)',
-    borderRadius: 18,
-    padding: 14,
-    marginBottom: 12,
-    marginHorizontal: 4,
-    shadowColor: '#001',
-    shadowOpacity: 0.07,
-    shadowOffset: { width: 0, height: 6 },
-    shadowRadius: 10,
-    elevation: 2,
-  },
-  summaryIconWrapper: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  summaryIconWrapper_total: {
-    backgroundColor: '#3DD6D0',
-  },
-  summaryIconWrapper_shared: {
-    backgroundColor: '#7C5CFF',
-  },
-  summaryIconWrapper_expiring: {
-    backgroundColor: '#FF8A65',
-  },
-  summaryValue: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#0B1A33',
-  },
-  summaryLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#4A5A78',
-    marginTop: 4,
-  },
-  summarySubLabel: {
-    fontSize: 12,
-    color: '#7A869A',
-    marginTop: 2,
+  welcome: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: '#333',
+    textAlign: 'center',
+    marginTop: -25,
   },
   content: {
     flex: 1,
-    marginTop: 16,
-  },
-  actionsLegend: {
-    backgroundColor: 'rgba(255, 255, 255, 0.92)',
-    borderRadius: 18,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    marginBottom: 12,
-    flexDirection: 'column',
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 8,
-    elevation: 1,
-  },
-  legendItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexShrink: 1,
-    marginBottom: 6,
-  },
-  legendIcon: {
-    marginEnd: 6,
-  },
-  legendText: {
-    fontSize: 12,
-    color: '#1A2433',
-    fontWeight: '500',
-  },
-  columnWrapper: {
-    justifyContent: 'space-between',
+    paddingHorizontal: 10,
   },
   listContent: {
-    paddingBottom: 120,
-    paddingTop: 4,
+    paddingBottom: 80,
   },
 });
