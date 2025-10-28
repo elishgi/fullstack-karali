@@ -22,6 +22,7 @@ export const deleteEvent = async (id) => (await api.delete(`/api/events/${id}`))
 export const deleteEventAndLogs = async (eventId) => (await api.delete(`/api/eventsWithLogs/${eventId}`)).data;
 export const markEventExpirationNotified = async (id) => (await api.post(`/api/events/${id}/mark-expiration-notified`)).data;
 export const getEventSummary = async (id) => (await api.get(`/api/events/${id}/summary`)).data;
+export const getTemporaryEventsOverview = async () => (await api.get('/api/events/temporary-overview')).data;
 export const restartEvent = async (id, payload) => (await api.post(`/api/events/${id}/restart`, payload)).data;
 export const archiveEvent = async (id) => (await api.post(`/api/events/${id}/archive`)).data;
 
