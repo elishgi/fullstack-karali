@@ -521,10 +521,9 @@ const HomeScreen = () => {
       }
 
       try {
-        const currentCount = coerceCount(event.totalColor);
         const updatedEvent = {
           ...event,
-          totalColor: currentCount + 1,
+          totalColor: (event.totalColor || 0) + 1,
           lastPressedAt: new Date().toISOString(),
         };
 
@@ -566,7 +565,7 @@ const HomeScreen = () => {
         return;
       }
 
-      if (coerceCount(event.totalColor) <= 0) {
+      if ((event.totalColor || 0) <= 0) {
         Alert.alert('לא ניתן לבצע פעולה', 'מונה הלחיצות כבר עומד על אפס.');
         return;
       }
@@ -585,10 +584,9 @@ const HomeScreen = () => {
         const lastLog = eventLogs[0];
         await deleteLogApi(lastLog._id);
 
-        const currentCount = coerceCount(event.totalColor);
         const updatedEvent = {
           ...event,
-          totalColor: Math.max(0, currentCount - 1),
+          totalColor: (event.totalColor || 0) - 1,
         };
 
         await updateEvent(event._id, updatedEvent);
@@ -659,7 +657,7 @@ const HomeScreen = () => {
       await updateEvent(selectedEventForEditName._id, {
         name: editedEventName.trim() || selectedEventForEditName.name,
         color: selectedEventForEditName.color,
-        totalColor: coerceCount(selectedEventForEditName.totalColor),
+        totalColor: selectedEventForEditName.totalColor,
       });
       await fetchEvents();
     } catch (error) {
@@ -678,7 +676,7 @@ const HomeScreen = () => {
       await updateEvent(selectedEventForColor._id, {
         name: selectedEventForColor.name,
         color: editedEventColor,
-        totalColor: coerceCount(selectedEventForColor.totalColor),
+        totalColor: selectedEventForColor.totalColor,
       });
       await fetchEvents();
     } catch (error) {
