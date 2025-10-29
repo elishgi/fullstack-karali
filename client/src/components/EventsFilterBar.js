@@ -57,7 +57,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   container: {
-    flexDirection: 'row',
+    flexDirection: 'row-reverse',
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: 'rgba(16, 32, 54, 0.06)',
