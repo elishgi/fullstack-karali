@@ -220,10 +220,12 @@ export default function AddDetailedLogScreen() {
       const currentEvent = allEvents.find((e) => e._id === eventId);
 
       if (currentEvent) {
+        const parsedCount = Number(currentEvent.totalColor);
+        const nextCount = Number.isFinite(parsedCount) ? parsedCount + 1 : 1;
         await updateEvent(eventId, {
           name: currentEvent.name,
           color: currentEvent.color,
-          totalColor: currentEvent.totalColor + 1
+          totalColor: nextCount
         });
       }
 
