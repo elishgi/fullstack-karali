@@ -126,22 +126,6 @@ const formatExpirationCountdown = (event) => {
   return { label, isExpired: false, tone };
 };
 
-const coerceCount = (value, fallback = 0) => {
-  const parsed = Number(value ?? fallback);
-  return Number.isFinite(parsed) ? parsed : fallback;
-};
-
-const normalizeEvent = (event) => {
-  if (!event) {
-    return { totalColor: 0 };
-  }
-
-  return {
-    ...event,
-    totalColor: coerceCount(event.totalColor),
-  };
-};
-
 const formatLastPressLabel = (event) => {
   const lastPress = getLastPress(event);
   if (!lastPress || lastPress.getTime() === 0) {
@@ -903,23 +887,18 @@ const HomeScreen = () => {
 
         {!sidebarVisible && eventSummary.total > 0 && (
           <View style={styles.summaryRow}>
-            {summaryCards.map((card, index) => (
-              <View
-                key={card.key}
-                style={[styles.summaryCard, index > 0 && styles.summaryCardSeparated]}
-              >
-                <View style={styles.summaryPrimaryRow}>
+            {summaryCards.map((card) => (
+              <View key={card.key} style={styles.summaryCard}>
+                <View style={styles.summaryTopRow}>
                   <View
                     style={[styles.summaryIconWrapper, styles[`summaryIconWrapper_${card.key}`]]}
                   >
-                    <Ionicons name={card.icon} size={14} color="#fff" />
+                    <Ionicons name={card.icon} size={16} color="#fff" />
                   </View>
                   <Text style={styles.summaryValue}>{card.value}</Text>
                 </View>
                 <Text style={styles.summaryLabel}>{card.label}</Text>
-                {card.subLabel ? (
-                  <Text style={styles.summarySubLabel}>{card.subLabel}</Text>
-                ) : null}
+                {card.subLabel ? <Text style={styles.summarySubLabel}>{card.subLabel}</Text> : null}
               </View>
             ))}
           </View>
@@ -931,10 +910,7 @@ const HomeScreen = () => {
           </View>
         ) : (
           <View style={styles.content}>
-            <View
-              style={[styles.eventsSurface, sidebarVisible && styles.eventsSurfaceDrawerOpen]}
-              pointerEvents={sidebarVisible ? 'none' : 'auto'}
-            >
+            <View style={styles.eventsSurface}>
               <TouchableOpacity
                 onPress={handleRevealFilters}
                 activeOpacity={0.7}
@@ -1055,7 +1031,7 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingTop: 60,
     paddingHorizontal: 18,
-    paddingBottom: 120,
+    paddingBottom: 160,
   },
   headerBar: {
     flexDirection: 'row',
@@ -1106,32 +1082,34 @@ const styles = StyleSheet.create({
   },
   summaryRow: {
     flexDirection: 'row',
-    alignItems: 'stretch',
     justifyContent: 'space-between',
     marginTop: 16,
-    paddingVertical: 12,
-    paddingHorizontal: 18,
-    backgroundColor: 'rgba(16, 32, 54, 0.06)',
-    borderRadius: 26,
+    flexWrap: 'wrap',
+    paddingVertical: 4,
+    paddingHorizontal: 6,
+    backgroundColor: 'rgba(16, 32, 54, 0.05)',
+    borderRadius: 18,
   },
   summaryCard: {
-    flex: 1,
-    minWidth: 0,
+    flexBasis: '30%',
+    minWidth: 96,
+    backgroundColor: 'rgba(255, 255, 255, 0.68)',
+    borderRadius: 14,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    marginBottom: 6,
+    marginHorizontal: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.5)',
   },
-  summaryCardSeparated: {
-    borderStartWidth: 1,
-    borderStartColor: 'rgba(12, 28, 52, 0.08)',
-    paddingStart: 12,
-  },
-  summaryPrimaryRow: {
+  summaryTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 6,
   },
   summaryIconWrapper: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -1145,47 +1123,41 @@ const styles = StyleSheet.create({
     backgroundColor: '#FF8A65',
   },
   summaryValue: {
-    fontSize: 18,
-    fontWeight: '800',
+    fontSize: 14,
+    fontWeight: '700',
     color: '#0B1A33',
     marginStart: 8,
   },
   summaryLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#2F3E57',
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#4A5A78',
+    marginTop: 4,
   },
   summarySubLabel: {
-    fontSize: 10,
-    color: '#5C6E88',
+    fontSize: 9,
+    color: '#7A869A',
     marginTop: 2,
   },
   content: {
     flex: 1,
     marginTop: 12,
-    paddingBottom: 16,
+    paddingBottom: 40,
   },
   eventsSurface: {
     flex: 1,
-    backgroundColor: 'rgba(244, 247, 253, 0.94)',
-    borderRadius: 30,
-    paddingTop: 16,
-    paddingHorizontal: 10,
-    paddingBottom: 18,
+    backgroundColor: 'rgba(246, 248, 253, 0.82)',
+    borderRadius: 28,
+    paddingTop: 12,
+    paddingHorizontal: 8,
+    paddingBottom: 16,
     borderWidth: 1,
-    borderColor: 'rgba(12, 28, 52, 0.06)',
+    borderColor: 'rgba(255, 255, 255, 0.65)',
     shadowColor: '#0F1F38',
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.08,
     shadowOffset: { width: 0, height: 10 },
-    shadowRadius: 24,
-    elevation: 5,
-  },
-  eventsSurfaceDrawerOpen: {
-    shadowOpacity: 0,
-    elevation: 0,
-    opacity: 0,
-    transform: [{ translateX: -24 }],
-    zIndex: -1,
+    shadowRadius: 20,
+    elevation: 4,
   },
   emptyStateWrapper: {
     flex: 1,
@@ -1209,11 +1181,13 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   filtersPanel: {
-    backgroundColor: 'rgba(255, 255, 255, 0.68)',
+    backgroundColor: 'rgba(255, 255, 255, 0.75)',
     borderRadius: 20,
     paddingVertical: 12,
     paddingHorizontal: 10,
     marginBottom: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(16, 32, 54, 0.08)',
   },
   filtersHideButton: {
     flexDirection: 'row',
@@ -1237,7 +1211,7 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   listContent: {
-    paddingBottom: 120,
+    paddingBottom: 220,
     paddingTop: 4,
     paddingHorizontal: 4,
   },

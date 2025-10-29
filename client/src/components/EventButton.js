@@ -25,11 +25,6 @@ const EventButton = ({ item, isEditMode, onPress, onLongPress, onEditName, onEdi
 
   const expired = Boolean(item?.isExpired);
 
-  const totalPressesValue = Number(item?.totalColor ?? 0);
-  const totalPresses = Number.isFinite(totalPressesValue)
-    ? Math.max(0, Math.round(totalPressesValue))
-    : 0;
-
   const statusBadges = useMemo(() => {
     const badges = [];
 
@@ -149,11 +144,7 @@ const EventButton = ({ item, isEditMode, onPress, onLongPress, onEditName, onEdi
                   expired && styles.innerCircleExpired,
                   { backgroundColor: item?.color || '#3DD6D0' },
                 ]}
-              >
-                <Text style={[styles.circleCount, expired && styles.circleCountExpired]}>
-                  {totalPresses}
-                </Text>
-              </View>
+              />
             </View>
             {expired && (
               <View style={styles.expiredFlag}>
@@ -188,13 +179,13 @@ const EventButton = ({ item, isEditMode, onPress, onLongPress, onEditName, onEdi
 const styles = StyleSheet.create({
   eventButtonWrapper: {
     width: '48%',
-    marginVertical: 10,
+    marginVertical: 8,
     marginHorizontal: 6,
     flexGrow: 1,
   },
   eventCard: {
     borderRadius: 20,
-    paddingVertical: 20,
+    paddingVertical: 12,
     paddingHorizontal: 12,
     backgroundColor: 'rgba(255, 255, 255, 0.95)',
     shadowColor: '#001',
@@ -204,7 +195,6 @@ const styles = StyleSheet.create({
     elevation: 3,
     position: 'relative',
     overflow: 'hidden',
-    minHeight: 252,
   },
   eventCardExpired: {
     backgroundColor: 'rgba(244, 245, 248, 0.95)',
@@ -314,45 +304,31 @@ const styles = StyleSheet.create({
   },
   circleContainer: {
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 8,
   },
   circleShadow: {
-    width: 76,
-    height: 76,
-    borderRadius: 38,
-    padding: 7,
+    width: 66,
+    height: 66,
+    borderRadius: 33,
+    padding: 4,
     backgroundColor: 'rgba(255, 255, 255, 0.95)',
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#3DD6D0',
-    shadowOpacity: 0.18,
+    shadowOpacity: 0.14,
     shadowOffset: { width: 0, height: 6 },
-    shadowRadius: 12,
-    elevation: 3,
+    shadowRadius: 10,
+    elevation: 2,
   },
   innerCircle: {
     width: '100%',
     height: '100%',
-    borderRadius: 31,
+    borderRadius: 33,
     borderWidth: 2,
     borderColor: 'rgba(255, 255, 255, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   innerCircleExpired: {
     opacity: 0.5,
-  },
-  circleCount: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: '#FFFFFF',
-    textAlign: 'center',
-    textShadowColor: 'rgba(0, 0, 0, 0.18)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 5,
-  },
-  circleCountExpired: {
-    color: '#F1F3F5',
   },
   expiredFlag: {
     position: 'absolute',
@@ -372,6 +348,62 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 10,
     fontWeight: '700',
+  },
+  eventButtonName: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#0B1A33',
+    textAlign: 'center',
+    marginTop: 2,
+  },
+  eventButtonNameExpired: {
+    color: '#6C7485',
+  },
+  eventButtonLastPress: {
+    marginTop: 6,
+    fontSize: 10,
+    color: '#637186',
+    textAlign: 'center',
+  },
+  timerPill: {
+    alignSelf: 'center',
+    marginTop: 8,
+    borderRadius: 14,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  timerIcon: {
+    marginEnd: 4,
+  },
+  timerText: {
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  timerPillInfo: {
+    backgroundColor: 'rgba(61, 214, 208, 0.18)',
+  },
+  timerTextInfo: {
+    color: '#12696A',
+  },
+  timerPillWarning: {
+    backgroundColor: 'rgba(255, 171, 64, 0.22)',
+  },
+  timerTextWarning: {
+    color: '#B15A00',
+  },
+  timerPillUrgent: {
+    backgroundColor: 'rgba(229, 57, 53, 0.24)',
+  },
+  timerTextUrgent: {
+    color: '#B71C1C',
+  },
+  timerPillExpired: {
+    backgroundColor: 'rgba(158, 158, 158, 0.28)',
+  },
+  timerTextExpired: {
+    color: '#424242',
   },
   eventButtonName: {
     fontSize: 14,

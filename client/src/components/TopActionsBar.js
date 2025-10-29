@@ -3,138 +3,98 @@ import { View, TouchableOpacity, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 const TopActionsBar = ({ isEditMode, onToggleEdit, onViewLogs, onAddEvent, disabled, style }) => (
-  <View style={[styles.wrapper, style]} pointerEvents={disabled ? 'none' : 'auto'}>
-    <View style={[styles.barShell, disabled && styles.barShellHidden]}>
-      <View style={styles.sideActionsRow}>
-        <TouchableOpacity
-          style={[styles.sideAction, isEditMode && styles.sideActionActive]}
-          onPress={onToggleEdit}
-          activeOpacity={0.85}
-        >
-          <Ionicons
-            name={isEditMode ? 'checkmark-circle-outline' : 'color-palette-outline'}
-            size={20}
-            color={isEditMode ? '#E0D4FF' : '#E8EEF8'}
-            style={styles.sideActionIcon}
-          />
-          <Text style={[styles.sideActionLabel, isEditMode && styles.sideActionLabelActive]}>
-            {isEditMode ? 'סיים עריכה' : 'מצב עריכה'}
-          </Text>
-        </TouchableOpacity>
+  <View
+    style={[styles.container, style, disabled && styles.disabled]}
+    pointerEvents={disabled ? 'none' : 'auto'}
+  >
+    <TouchableOpacity
+      style={[styles.sideButton, isEditMode && styles.sideButtonActive]}
+      onPress={onToggleEdit}
+      activeOpacity={0.85}
+    >
+      <Text style={[styles.buttonText, isEditMode && styles.buttonTextActive]}>
+        {isEditMode ? '✅ סיים עריכה' : '🎨 מצב עריכה'}
+      </Text>
+    </TouchableOpacity>
 
-        <TouchableOpacity style={styles.sideAction} onPress={onViewLogs} activeOpacity={0.85}>
-          <Ionicons
-            name="document-text-outline"
-            size={20}
-            color="#E8EEF8"
-            style={styles.sideActionIcon}
-          />
-          <Text style={styles.sideActionLabel}>יומן תיעודים</Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.primarySlot}>
-        <View style={styles.primaryButtonShadow}>
-          <TouchableOpacity style={styles.primaryButton} onPress={onAddEvent} activeOpacity={0.92}>
-            <Ionicons name="add" size={30} color="#0B1A33" />
-          </TouchableOpacity>
-        </View>
-        <Text style={styles.primaryLabel}>הוסף אירוע</Text>
-      </View>
+    <View style={styles.primaryButtonWrapper}>
+      <TouchableOpacity style={styles.primaryButton} onPress={onAddEvent} activeOpacity={0.9}>
+        <Text style={styles.primaryButtonText}>➕ הוסף אירוע</Text>
+      </TouchableOpacity>
     </View>
+
+    <TouchableOpacity style={styles.sideButton} onPress={onViewLogs} activeOpacity={0.85}>
+      <Text style={styles.buttonText}>📄 הצג לוגים</Text>
+    </TouchableOpacity>
   </View>
 );
 
 const styles = StyleSheet.create({
-  wrapper: {
-    paddingHorizontal: 20,
-    paddingBottom: 18,
-  },
-  barShell: {
-    position: 'relative',
-    backgroundColor: 'rgba(15, 32, 58, 0.92)',
-    borderTopLeftRadius: 30,
-    borderTopRightRadius: 30,
-    paddingTop: 34,
-    paddingBottom: 18,
-    paddingHorizontal: 26,
-    shadowColor: '#000',
-    shadowOpacity: 0.18,
-    shadowOffset: { width: 0, height: -6 },
-    shadowRadius: 16,
-    elevation: 14,
-  },
-  barShellHidden: {
-    opacity: 0,
-    transform: [{ translateY: 100 }],
-  },
-  sideActionsRow: {
+  container: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 24,
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 18,
+    backgroundColor: 'rgba(255, 255, 255, 0.96)',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowOffset: { width: 0, height: -2 },
+    shadowRadius: 8,
+    elevation: 6,
   },
-  sideAction: {
+  disabled: {
+    opacity: 0,
+    transform: [{ translateY: 80 }],
+  },
+  sideButton: {
     flex: 1,
     height: 46,
-    borderRadius: 16,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.16)',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    flexDirection: 'row',
-    alignItems: 'center',
+    borderColor: 'rgba(11, 26, 51, 0.08)',
+    backgroundColor: 'rgba(245, 247, 251, 0.9)',
     justifyContent: 'center',
-    marginHorizontal: 8,
-    paddingHorizontal: 14,
+    alignItems: 'center',
+    marginHorizontal: 6,
   },
-  sideActionActive: {
-    backgroundColor: 'rgba(123, 92, 255, 0.18)',
-    borderColor: 'rgba(213, 200, 255, 0.6)',
+  sideButtonActive: {
+    backgroundColor: 'rgba(166, 140, 241, 0.22)',
+    borderColor: 'rgba(166, 140, 241, 0.6)',
   },
-  sideActionIcon: {
-    marginEnd: 8,
-  },
-  sideActionLabel: {
-    fontSize: 13,
+  buttonText: {
+    fontSize: 14,
     fontWeight: '700',
-    color: '#E8EEF8',
+    color: '#2A3A56',
   },
-  sideActionLabelActive: {
-    color: '#F1E9FF',
+  buttonTextActive: {
+    color: '#5B2FC1',
   },
-  primarySlot: {
-    position: 'absolute',
-    top: -32,
-    left: '50%',
-    transform: [{ translateX: -40 }],
+  primaryButtonWrapper: {
+    flex: 1.2,
     alignItems: 'center',
-  },
-  primaryButtonShadow: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: 'rgba(61, 214, 208, 0.22)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#3DD6D0',
-    shadowOpacity: 0.35,
-    shadowOffset: { width: 0, height: 12 },
-    shadowRadius: 20,
-    elevation: 16,
+    marginHorizontal: 6,
   },
   primaryButton: {
-    width: 68,
-    height: 68,
-    borderRadius: 34,
+    width: '100%',
+    height: 56,
+    borderRadius: 28,
     backgroundColor: '#3DD6D0',
     justifyContent: 'center',
     alignItems: 'center',
+    shadowColor: '#3DD6D0',
+    shadowOpacity: 0.4,
+    shadowOffset: { width: 0, height: 8 },
+    shadowRadius: 12,
+    elevation: 8,
   },
-  primaryLabel: {
-    marginTop: 10,
-    fontSize: 12,
+  primaryButtonText: {
+    fontSize: 16,
     fontWeight: '800',
-    color: '#E8EEF8',
+    color: '#0B1A33',
   },
 });
 
