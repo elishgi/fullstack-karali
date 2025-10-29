@@ -405,6 +405,62 @@ const styles = StyleSheet.create({
   timerTextExpired: {
     color: '#424242',
   },
+  eventButtonName: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#0B1A33',
+    textAlign: 'center',
+    marginTop: 2,
+  },
+  eventButtonNameExpired: {
+    color: '#6C7485',
+  },
+  eventButtonLastPress: {
+    marginTop: 6,
+    fontSize: 10,
+    color: '#637186',
+    textAlign: 'center',
+  },
+  timerPill: {
+    alignSelf: 'center',
+    marginTop: 8,
+    borderRadius: 14,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  timerIcon: {
+    marginEnd: 4,
+  },
+  timerText: {
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  timerPillInfo: {
+    backgroundColor: 'rgba(61, 214, 208, 0.18)',
+  },
+  timerTextInfo: {
+    color: '#12696A',
+  },
+  timerPillWarning: {
+    backgroundColor: 'rgba(255, 171, 64, 0.22)',
+  },
+  timerTextWarning: {
+    color: '#B15A00',
+  },
+  timerPillUrgent: {
+    backgroundColor: 'rgba(229, 57, 53, 0.24)',
+  },
+  timerTextUrgent: {
+    color: '#B71C1C',
+  },
+  timerPillExpired: {
+    backgroundColor: 'rgba(158, 158, 158, 0.28)',
+  },
+  timerTextExpired: {
+    color: '#424242',
+  },
 });
 
 export default EventButton;
