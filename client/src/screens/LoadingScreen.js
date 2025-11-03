@@ -14,7 +14,7 @@ const LoadingScreen = ({ navigation }) => {
     let isActive = true;
 
     const bootstrap = async () => {
-      const minimumDelay = new Promise((resolve) => setTimeout(resolve, 5000));
+      const minimumDelay = new Promise((resolve) => setTimeout(resolve, 2500));
 
       try {
         const [eventsData] = await Promise.all([
