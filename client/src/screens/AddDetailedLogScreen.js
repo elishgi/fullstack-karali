@@ -17,7 +17,7 @@ import MapView, { Marker } from 'react-native-maps';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
-import { addLog, updateEvent, getEvents } from '../services/api';
+import { addLog, getEvents } from '../services/api';
 
 const ACCENT = '#3dd6d0';
 const ACCENT_DARK = '#0f766e';
@@ -190,46 +190,21 @@ export default function AddDetailedLogScreen() {
 
   const handleSave = async () => {
     try {
-      let finalEventName = eventName;
-
-      // אם משום מה ה־eventName עדיין ריק → נביא שוב
-      if (finalEventName === '') {
-        const allEvents = await getEvents();
-        const currentEvent = allEvents.find((e) => e._id === eventId);
-        if (currentEvent) {
-          finalEventName = currentEvent.name;
-        }
-      }
-
-      // 1. נוסיף Log חדש
-      const newLog = {
-        eventId: eventId,
-        eventName: finalEventName,
-        timestamp: new Date(),
-        timeOfDay: getCurrentTimeOfDay(),
-        dayOfWeek: getCurrentDayOfWeek(),
+      await addLog({
+        eventId,
         comment: comment.trim(),
-        imageUri: imageUri,
+        imageUri,
         location: location || {},
-      };
-
-      await addLog(newLog);
-
-      // 2. נעדכן את המונה ב־Event
-      const allEvents = await getEvents();
-      const currentEvent = allEvents.find((e) => e._id === eventId);
-
-      if (currentEvent) {
-        await updateEvent(eventId, {
-          name: currentEvent.name,
-          color: currentEvent.color,
-          totalColor: currentEvent.totalColor + 1
-        });
-      }
+      });
 
       Alert.alert('התיעוד נשמר בהצלחה');
       navigation.goBack();
     } catch (error) {
+      if (error?.response?.status === 409) {
+        const message = error?.response?.data?.message || 'לא ניתן להוסיף תיעוד עבור אירוע זה.';
+        Alert.alert('לא ניתן להוסיף תיעוד', message);
+        return;
+      }
       console.error('Error saving detailed log:', error);
       Alert.alert('שגיאה בשמירת התיעוד');
     }
@@ -458,19 +433,6 @@ export default function AddDetailedLogScreen() {
     </ScrollView>
   );
 }
-
-const getCurrentTimeOfDay = () => {
-  const hour = new Date().getHours();
-  if (hour < 12) return 'בוקר';
-  if (hour < 16) return 'צהריים';
-  if (hour < 20) return 'ערב';
-  return 'לילה';
-};
-
-const getCurrentDayOfWeek = () => {
-  const days = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
-  return days[new Date().getDay()];
-};
 
 const styles = StyleSheet.create({
   container: {
