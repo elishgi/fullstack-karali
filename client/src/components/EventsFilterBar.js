@@ -12,30 +12,36 @@ const EventsFilterBar = ({
   <View style={styles.wrapper}>
     <View style={styles.container}>
       <TouchableOpacity
-        style={[styles.segment, showPersonal && styles.segmentActivePersonal]}
+        style={[styles.segment, showPersonal && styles.segmentActive]}
         onPress={onTogglePersonal}
         activeOpacity={0.85}
       >
-        <Ionicons
-          name={showPersonal ? 'person' : 'person-outline'}
-          size={16}
-          color={showPersonal ? '#0B69FF' : '#3A4A5F'}
-          style={styles.segmentIcon}
-        />
+        <View
+          style={[styles.iconBadge, styles.iconBadgePersonal, showPersonal && styles.iconBadgeActive]}
+        >
+          <Ionicons
+            name={showPersonal ? 'person' : 'person-outline'}
+            size={16}
+            color={showPersonal ? '#0B69FF' : '#3A4A5F'}
+          />
+        </View>
         <Text style={[styles.segmentText, showPersonal && styles.segmentTextActive]}>אישי</Text>
       </TouchableOpacity>
 
       <TouchableOpacity
-        style={[styles.segment, showShared && styles.segmentActiveShared]}
+        style={[styles.segment, showShared && styles.segmentActive]}
         onPress={onToggleShared}
         activeOpacity={0.85}
       >
-        <Ionicons
-          name={showShared ? 'people' : 'people-outline'}
-          size={16}
-          color={showShared ? '#673AB7' : '#3A4A5F'}
-          style={styles.segmentIcon}
-        />
+        <View
+          style={[styles.iconBadge, styles.iconBadgeShared, showShared && styles.iconBadgeActive]}
+        >
+          <Ionicons
+            name={showShared ? 'people' : 'people-outline'}
+            size={16}
+            color={showShared ? '#673AB7' : '#3A4A5F'}
+          />
+        </View>
         <Text style={[styles.segmentText, showShared && styles.segmentTextActiveShared]}>משותף</Text>
       </TouchableOpacity>
 
@@ -45,7 +51,9 @@ const EventsFilterBar = ({
         activeOpacity={0.85}
         accessibilityLabel="סינון ומיון אירועים"
       >
-        <Ionicons name="funnel-outline" size={17} color="#3A4A5F" style={styles.segmentIcon} />
+        <View style={[styles.iconBadge, styles.iconBadgeNeutral]}>
+          <Ionicons name="funnel-outline" size={17} color="#3A4A5F" />
+        </View>
         <Text style={styles.segmentText}>מיון</Text>
       </TouchableOpacity>
     </View>
@@ -60,33 +68,53 @@ const styles = StyleSheet.create({
     flexDirection: 'row-reverse',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: 'rgba(16, 32, 54, 0.06)',
-    borderRadius: 18,
-    padding: 6,
-    gap: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.78)',
+    borderRadius: 20,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    gap: 14,
+    shadowColor: '#0F1F38',
+    shadowOpacity: 0.06,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 8,
+    elevation: 2,
   },
   segment: {
     flex: 1,
-    height: 44,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255, 255, 255, 0.65)',
-    borderWidth: 1,
-    borderColor: 'rgba(16, 32, 54, 0.08)',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 12,
+    gap: 8,
+    paddingVertical: 4,
+    borderRadius: 16,
   },
-  segmentActivePersonal: {
-    backgroundColor: 'rgba(11, 105, 255, 0.12)',
-    borderColor: 'rgba(11, 105, 255, 0.32)',
+  segmentActive: {
+    backgroundColor: 'rgba(16, 32, 54, 0.05)',
   },
-  segmentActiveShared: {
-    backgroundColor: 'rgba(103, 58, 183, 0.14)',
-    borderColor: 'rgba(103, 58, 183, 0.32)',
+  iconBadge: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(16, 32, 54, 0.08)',
   },
-  segmentIcon: {
-    marginEnd: 6,
+  iconBadgePersonal: {
+    backgroundColor: 'rgba(11, 105, 255, 0.14)',
+  },
+  iconBadgeShared: {
+    backgroundColor: 'rgba(103, 58, 183, 0.16)',
+  },
+  iconBadgeNeutral: {
+    backgroundColor: 'rgba(16, 32, 54, 0.1)',
+  },
+  iconBadgeActive: {
+    transform: [{ translateY: -1 }],
+    shadowColor: '#0F1F38',
+    shadowOpacity: 0.12,
+    shadowOffset: { width: 0, height: 3 },
+    shadowRadius: 6,
+    elevation: 3,
   },
   segmentText: {
     fontSize: 13,

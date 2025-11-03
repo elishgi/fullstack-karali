@@ -859,7 +859,7 @@ const HomeScreen = () => {
             activeOpacity={0.7}
             accessibilityLabel="פתח תפריט"
           >
-            <Ionicons name="menu" size={24} color="#0B1A33" />
+            <Ionicons name="menu" size={22} color="#0B1A33" />
           </TouchableOpacity>
 
           <View style={styles.headerCenter}>
@@ -876,7 +876,7 @@ const HomeScreen = () => {
             activeOpacity={0.7}
             accessibilityLabel="פתח התראות"
           >
-            <Ionicons name="notifications-outline" size={24} color="#0B1A33" />
+            <Ionicons name="notifications-outline" size={22} color="#0B1A33" />
             {hasUnreadNotif && <View style={styles.bellDot} />}
           </TouchableOpacity>
         </View>
@@ -1025,9 +1025,9 @@ const styles = StyleSheet.create({
   },
   screenContainer: {
     flex: 1,
-    paddingTop: 60,
+    paddingTop: 38,
     paddingHorizontal: 18,
-    paddingBottom: 160,
+    paddingBottom: 96,
   },
   headerBar: {
     flexDirection: 'row',
@@ -1039,29 +1039,29 @@ const styles = StyleSheet.create({
   },
   iconButton: {
     backgroundColor: 'rgba(255, 255, 255, 0.92)',
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 8,
-    elevation: 4,
+    shadowOpacity: 0.08,
+    shadowOffset: { width: 0, height: 3 },
+    shadowRadius: 6,
+    elevation: 3,
   },
   headerCenter: {
     alignItems: 'center',
     justifyContent: 'center',
   },
   headerLogo: {
-    width: 180,
-    height: 60,
+    width: 156,
+    height: 48,
     resizeMode: 'contain',
   },
   greetingText: {
-    marginTop: 6,
-    fontSize: 14,
+    marginTop: 2,
+    fontSize: 13,
     fontWeight: '700',
     color: '#132542',
   },
@@ -1079,7 +1079,7 @@ const styles = StyleSheet.create({
   summaryRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 16,
+    marginTop: 12,
     flexWrap: 'wrap',
     paddingVertical: 4,
     paddingHorizontal: 6,
@@ -1137,8 +1137,8 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    marginTop: 12,
-    paddingBottom: 40,
+    marginTop: 8,
+    paddingBottom: 12,
   },
   eventsSurface: {
     flex: 1,
@@ -1146,7 +1146,7 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     paddingTop: 12,
     paddingHorizontal: 8,
-    paddingBottom: 16,
+    paddingBottom: 28,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.65)',
     shadowColor: '#0F1F38',
@@ -1158,11 +1158,11 @@ const styles = StyleSheet.create({
   emptyStateWrapper: {
     flex: 1,
     justifyContent: 'center',
-    paddingBottom: 160,
+    paddingBottom: 120,
   },
   filtersHandleContainer: {
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   filtersHandle: {
     width: 50,
@@ -1207,7 +1207,7 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   listContent: {
-    paddingBottom: 220,
+    paddingBottom: 140,
     paddingTop: 4,
     paddingHorizontal: 4,
   },
