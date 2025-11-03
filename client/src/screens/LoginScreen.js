@@ -23,7 +23,7 @@ export default function LoginScreen({ navigation }) {
       const token = await AsyncStorage.getItem('token');
       const user = await AsyncStorage.getItem('user');
       if (token && user) {
-        navigation.replace('Loading');
+        navigation.replace('Home');
       }
     };
     checkLogin();
@@ -34,7 +34,7 @@ export default function LoginScreen({ navigation }) {
       const res = await api.post('/api/users/login', { identifier, password });
       await AsyncStorage.setItem('token', res.data.token);
       await AsyncStorage.setItem('user', JSON.stringify(res.data.user));
-      navigation.replace('Loading');
+      navigation.replace('Home');
     } catch (err) {
       Alert.alert('שגיאה', err.response?.data?.message || 'לא ניתן להתחבר. נסה שוב מאוחר יותר.');
     }

@@ -9,7 +9,6 @@ import LogsScreen from '../screens/LogsScreen';
 import AddDetailedLogScreen from '../screens/AddDetailedLogScreen';
 import SignUpScreen from '../screens/SignUpScreen';
 import LoginScreen from '../screens/LoginScreen';
-import LoadingScreen from '../screens/LoadingScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -19,7 +18,6 @@ export default function AppNavigator() {
       <Stack.Navigator initialRouteName="Login" screenOptions={{ headerShown: false }}>
         <Stack.Screen name="Login" component={LoginScreen} />
         <Stack.Screen name="SignUp" component={SignUpScreen} />
-        <Stack.Screen name="Loading" component={LoadingScreen} />
         <Stack.Screen name="Home" component={HomeScreen} />
         <Stack.Screen name="AddEvent" component={AddEventScreen} />
         <Stack.Screen name="Logs" component={LogsScreen} />
