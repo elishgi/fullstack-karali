@@ -906,7 +906,10 @@ const HomeScreen = () => {
           </View>
         ) : (
           <View style={styles.content}>
-            <View style={styles.eventsSurface}>
+            <View
+              style={[styles.eventsSurface, sidebarVisible && styles.eventsSurfaceSidebarHidden]}
+              pointerEvents={sidebarVisible ? 'none' : 'auto'}
+            >
               <TouchableOpacity
                 onPress={handleRevealFilters}
                 activeOpacity={0.7}
@@ -1154,6 +1157,10 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 10 },
     shadowRadius: 20,
     elevation: 4,
+  },
+  eventsSurfaceSidebarHidden: {
+    zIndex: -1,
+    elevation: 0,
   },
   emptyStateWrapper: {
     flex: 1,
