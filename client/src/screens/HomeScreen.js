@@ -185,10 +185,25 @@ const buildSummaryMessage = (event, summary) => {
   return lines.join('\n');
 };
 
-const HomeScreen = () => {
+const HomeScreen = ({ route }) => {
   const navigation = useNavigation();
 
-  const [events, setEvents] = useState([]);
+  const prefetchedEvents = route?.params?.prefetchedEvents;
+  const hasPrefetchedEvents = Array.isArray(prefetchedEvents);
+
+  const [events, setEvents] = useState(() => (hasPrefetchedEvents ? prefetchedEvents : []));
+
+  useEffect(() => {
+    if (hasPrefetchedEvents) {
+      setEvents(prefetchedEvents);
+    }
+  }, [hasPrefetchedEvents, prefetchedEvents]);
+
+  useEffect(() => {
+    if (hasPrefetchedEvents) {
+      navigation.setParams({ prefetchedEvents: undefined });
+    }
+  }, [hasPrefetchedEvents, navigation]);
   const [isEditMode, setIsEditMode] = useState(false);
 
   const [selectedEventForEditName, setSelectedEventForEditName] = useState(null);
