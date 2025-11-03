@@ -93,6 +93,29 @@ const EventButton = ({ item, isEditMode, onPress, onLongPress, onEditName, onEdi
       onLongPress={isEditMode ? null : onLongPress}
     >
       <Animated.View style={[styles.eventButtonWrapper, { transform: [{ scale: scaleAnim }] }]}>
+        {isEditMode && (
+          <View style={styles.editButtonsContainer}>
+            <TouchableOpacity
+              style={[styles.editButtonCircle, styles.editButtonCircleDelete]}
+              onPress={onDelete}
+            >
+              <Ionicons name="trash-outline" size={15} color="#8C1C1C" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.editButtonCircle, styles.editButtonCircleAccent]}
+              onPress={onEditColor}
+            >
+              <Ionicons name="color-palette-outline" size={15} color="#4C34D3" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.editButtonCircle, styles.editButtonCircleRename]}
+              onPress={onEditName}
+            >
+              <Ionicons name="pencil-outline" size={15} color="#0B1A33" />
+            </TouchableOpacity>
+          </View>
+        )}
+
         <View style={[styles.eventCard, expired && styles.eventCardExpired]}>
           <Animated.View style={[styles.glowOverlayWrapper, { opacity: glowOpacity }]} pointerEvents="none">
             <BlurView intensity={45} style={styles.glowOverlay} tint="light">
@@ -105,28 +128,6 @@ const EventButton = ({ item, isEditMode, onPress, onLongPress, onEditName, onEdi
             </BlurView>
           </Animated.View>
 
-          {isEditMode && (
-            <View style={styles.editButtonsContainer}>
-              <TouchableOpacity
-                style={[styles.editButtonCircle, styles.editButtonCircleDelete]}
-                onPress={onDelete}
-              >
-                <Ionicons name="trash-outline" size={15} color="#8C1C1C" />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.editButtonCircle, styles.editButtonCircleAccent]}
-                onPress={onEditColor}
-              >
-                <Ionicons name="color-palette-outline" size={15} color="#4C34D3" />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.editButtonCircle, styles.editButtonCircleRename]}
-                onPress={onEditName}
-              >
-                <Ionicons name="pencil-outline" size={15} color="#0B1A33" />
-              </TouchableOpacity>
-            </View>
-          )}
 
           <View style={styles.badgesRow}>
             {statusBadges.map((badge) => {
@@ -223,7 +224,7 @@ const styles = StyleSheet.create({
   },
   editButtonsContainer: {
     position: 'absolute',
-    top: -14,
+    top: -18,
     left: 0,
     right: 0,
     flexDirection: 'row',
