@@ -24,6 +24,13 @@ const EventButton = ({ item, isEditMode, onPress, onLongPress, onEditName, onEdi
   const glowOpacity = useRef(new Animated.Value(0)).current;
 
   const expired = Boolean(item?.isExpired);
+  const pressCount = useMemo(() => {
+    const value = Number(item?.totalColor);
+    if (Number.isFinite(value) && value >= 0) {
+      return value;
+    }
+    return 0;
+  }, [item?.totalColor]);
 
   const statusBadges = useMemo(() => {
     const badges = [];
@@ -145,6 +152,7 @@ const EventButton = ({ item, isEditMode, onPress, onLongPress, onEditName, onEdi
                   { backgroundColor: item?.color || '#3DD6D0' },
                 ]}
               />
+              <Text style={styles.pressCountText}>{pressCount}</Text>
             </View>
             {expired && (
               <View style={styles.expiredFlag}>
@@ -329,6 +337,20 @@ const styles = StyleSheet.create({
   },
   innerCircleExpired: {
     opacity: 0.5,
+  },
+  pressCountText: {
+    position: 'absolute',
+    top: '50%',
+    left: 0,
+    right: 0,
+    textAlign: 'center',
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#0B1A33',
+    transform: [{ translateY: -12 }],
+    textShadowColor: 'rgba(255, 255, 255, 0.8)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   expiredFlag: {
     position: 'absolute',
