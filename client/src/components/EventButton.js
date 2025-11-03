@@ -191,6 +191,7 @@ const styles = StyleSheet.create({
     marginVertical: 8,
     marginHorizontal: 6,
     flexGrow: 1,
+    position: 'relative',
   },
   eventCard: {
     borderRadius: 20,
