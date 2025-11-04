@@ -1,12 +1,6 @@
 const Event = require('../models/event.model');
 const Log = require('../models/log.model');
 
-const getStartOfDay = (date) => {
-  const copy = new Date(date);
-  copy.setHours(0, 0, 0, 0);
-  return copy;
-};
-
 // ניהול CRUD של אירועים + לוגיקה חדשה עבור תוקף אירוע
 
 const getAllEvents = async (req, res) => {
@@ -15,19 +9,7 @@ const getAllEvents = async (req, res) => {
       userId: req.user._id,
       archived: { $ne: true },
     });
-
-    const todayStart = getStartOfDay(new Date());
-
-    const normalized = events.map((eventDoc) => {
-      const event = eventDoc.toObject();
-      const lastReset = event.dailyGoalLastReset ? new Date(event.dailyGoalLastReset) : null;
-      if (!lastReset || Number.isNaN(lastReset.getTime()) || lastReset < todayStart) {
-        event.dailyGoalCount = 0;
-      }
-      return event;
-    });
-
-    res.json(normalized);
+    res.json(events);
   } catch (err) {
     res.status(500).json({ message: 'שגיאה בשליפת האירועים' });
   }
@@ -43,33 +25,10 @@ const createEvent = async (req, res) => {
       expiresAt,
       expirationDurationMs,
       type = 'regular',
-      eventGoalValue,
-      dailyGoalValue,
     } = req.body;
 
     if (!['regular', 'temporary'].includes(type)) {
       return res.status(400).json({ message: 'סוג האירוע אינו תקין' });
-    }
-
-    const normalizeGoalValue = (value) => {
-      if (value === undefined || value === null || value === '') {
-        return null;
-      }
-      const numericGoal = Number(value);
-      if (!Number.isFinite(numericGoal) || numericGoal <= 0) {
-        return null;
-      }
-      return Math.floor(numericGoal);
-    };
-
-    const normalizedEventGoal = normalizeGoalValue(eventGoalValue);
-    if (eventGoalValue !== undefined && normalizedEventGoal === null) {
-      return res.status(400).json({ message: 'ערך יעד האירוע אינו תקין' });
-    }
-
-    const normalizedDailyGoal = normalizeGoalValue(dailyGoalValue);
-    if (dailyGoalValue !== undefined && normalizedDailyGoal === null) {
-      return res.status(400).json({ message: 'ערך היעד היומי אינו תקין' });
     }
 
     let parsedExpiresAt = null;
@@ -96,11 +55,6 @@ const createEvent = async (req, res) => {
       expiresAt: parsedExpiresAt,
       expirationDurationMs: normalizedDuration,
       type,
-      eventGoalValue: normalizedEventGoal,
-      eventGoalCompletedAt: null,
-      dailyGoalValue: normalizedDailyGoal,
-      dailyGoalCount: 0,
-      dailyGoalLastReset: null,
     });
 
     await newEvent.save();
@@ -126,135 +80,75 @@ const updateEvent = async (req, res) => {
       archived,
       lastPressedAt,
       type,
-      eventGoalValue,
-      eventGoalCompletedAt,
-      dailyGoalValue,
-      dailyGoalCount,
-      dailyGoalLastReset,
     } = req.body;
 
-    const event = await Event.findOne({ _id: id, userId: req.user._id });
-
-    if (!event) {
-      return res.status(404).json({ message: 'אירוע לא נמצא' });
-    }
-
-    if (name !== undefined) {
-      event.name = name;
-    }
-
-    if (color !== undefined) {
-      event.color = color;
-    }
-
-    if (totalColor !== undefined) {
-      event.totalColor = totalColor;
-    }
+    const updates = {
+      ...(name !== undefined ? { name } : {}),
+      ...(color !== undefined ? { color } : {}),
+      ...(totalColor !== undefined ? { totalColor } : {}),
+    };
 
     if (typeof shared === 'boolean') {
-      event.shared = shared;
+      updates.shared = shared;
     }
 
     if (participants !== undefined) {
-      event.participants = Array.isArray(participants) ? participants : [];
+      updates.participants = Array.isArray(participants) ? participants : [];
     }
 
     if (type !== undefined) {
       if (!['regular', 'temporary'].includes(type)) {
         return res.status(400).json({ message: 'סוג האירוע אינו תקין' });
       }
-      event.type = type;
+      updates.type = type;
     }
 
     if (expiresAt !== undefined) {
       if (expiresAt === null) {
-        event.expiresAt = null;
+        updates.expiresAt = null;
       } else {
         const parsed = new Date(expiresAt);
         if (Number.isNaN(parsed.getTime())) {
           return res.status(400).json({ message: 'תאריך תפוגה אינו תקין' });
         }
-        event.expiresAt = parsed;
+        updates.expiresAt = parsed;
       }
     }
 
     if (expirationDurationMs !== undefined) {
-      event.expirationDurationMs =
+      updates.expirationDurationMs =
         typeof expirationDurationMs === 'number' && expirationDurationMs > 0
           ? expirationDurationMs
           : null;
     }
 
     if (typeof expirationNotified === 'boolean') {
-      event.expirationNotified = expirationNotified;
+      updates.expirationNotified = expirationNotified;
     }
 
     if (typeof expirationAcknowledged === 'boolean') {
-      event.expirationAcknowledged = expirationAcknowledged;
+      updates.expirationAcknowledged = expirationAcknowledged;
     }
 
     if (typeof archived === 'boolean') {
-      event.archived = archived;
+      updates.archived = archived;
     }
 
     if (lastPressedAt !== undefined) {
-      event.lastPressedAt = lastPressedAt ? new Date(lastPressedAt) : null;
+      updates.lastPressedAt = lastPressedAt ? new Date(lastPressedAt) : null;
     }
 
-    if (eventGoalValue !== undefined) {
-      if (eventGoalValue === null || eventGoalValue === '') {
-        event.eventGoalValue = null;
-        event.eventGoalCompletedAt = null;
-      } else {
-        const numericGoal = Number(eventGoalValue);
-        if (!Number.isFinite(numericGoal) || numericGoal <= 0) {
-          return res.status(400).json({ message: 'ערך יעד האירוע אינו תקין' });
-        }
-        event.eventGoalValue = Math.floor(numericGoal);
-        if (event.totalColor < event.eventGoalValue) {
-          event.eventGoalCompletedAt = null;
-        }
-      }
+    const updatedEvent = await Event.findOneAndUpdate(
+      { _id: id, userId: req.user._id },
+      updates,
+      { new: true }
+    );
+
+    if (!updatedEvent) {
+      return res.status(404).json({ message: 'אירוע לא נמצא' });
     }
 
-    if (eventGoalCompletedAt !== undefined) {
-      event.eventGoalCompletedAt = eventGoalCompletedAt
-        ? new Date(eventGoalCompletedAt)
-        : null;
-    }
-
-    if (dailyGoalValue !== undefined) {
-      if (dailyGoalValue === null || dailyGoalValue === '') {
-        event.dailyGoalValue = null;
-        event.dailyGoalCount = 0;
-        event.dailyGoalLastReset = null;
-      } else {
-        const numericGoal = Number(dailyGoalValue);
-        if (!Number.isFinite(numericGoal) || numericGoal <= 0) {
-          return res.status(400).json({ message: 'ערך היעד היומי אינו תקין' });
-        }
-        event.dailyGoalValue = Math.floor(numericGoal);
-        event.dailyGoalCount = 0;
-        event.dailyGoalLastReset = null;
-      }
-    }
-
-    if (dailyGoalCount !== undefined) {
-      const numeric = Number(dailyGoalCount);
-      if (Number.isFinite(numeric) && numeric >= 0) {
-        event.dailyGoalCount = numeric;
-      }
-    }
-
-    if (dailyGoalLastReset !== undefined) {
-      event.dailyGoalLastReset = dailyGoalLastReset
-        ? new Date(dailyGoalLastReset)
-        : null;
-    }
-
-    await event.save();
-
-    res.json(event);
+    res.json(updatedEvent);
   } catch (err) {
     res.status(400).json({ message: 'שגיאה בעדכון אירוע' });
   }
@@ -386,20 +280,11 @@ const getTemporaryEventsOverview = async (req, res) => {
       archived: { $ne: true },
     }).sort({ updatedAt: -1 });
 
-    const todayStart = getStartOfDay(new Date());
-
     const summaries = await Promise.all(
-      events.map(async (eventDoc) => {
-        const event = eventDoc.toObject();
-        const lastReset = event.dailyGoalLastReset ? new Date(event.dailyGoalLastReset) : null;
-        if (!lastReset || Number.isNaN(lastReset.getTime()) || lastReset < todayStart) {
-          event.dailyGoalCount = 0;
-        }
-        return {
-          event,
-          summary: await buildEventSummary(eventDoc._id, req.user._id),
-        };
-      })
+      events.map(async (event) => ({
+        event,
+        summary: await buildEventSummary(event._id, req.user._id),
+      }))
     );
 
     res.json(summaries);
@@ -446,9 +331,6 @@ const restartEvent = async (req, res) => {
     event.expirationNotified = false;
     event.expirationAcknowledged = false;
     event.archived = false;
-    event.dailyGoalCount = 0;
-    event.dailyGoalLastReset = null;
-    event.eventGoalCompletedAt = null;
 
     await event.save();
 
