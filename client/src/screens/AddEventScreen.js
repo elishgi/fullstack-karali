@@ -34,10 +34,6 @@ export default function AddEventScreen() {
   const [showTimePicker, setShowTimePicker] = useState(false);
 
   const [isShared, setIsShared] = useState(false);
-  const [eventGoalEnabled, setEventGoalEnabled] = useState(false);
-  const [eventGoalValue, setEventGoalValue] = useState('');
-  const [dailyGoalEnabled, setDailyGoalEnabled] = useState(false);
-  const [dailyGoalValue, setDailyGoalValue] = useState('');
   const [friends] = useState([
     { id: 'u1', name: 'אשתי היקרה' },
     { id: 'u2', name: 'נועה לוי' },
@@ -45,24 +41,6 @@ export default function AddEventScreen() {
     { id: 'u4', name: 'עלמה פרידמן' },
   ]);
   const [selectedFriendIds, setSelectedFriendIds] = useState([]);
-
-  const toggleEventGoal = () => {
-    setEventGoalEnabled((prev) => {
-      if (prev) {
-        setEventGoalValue('');
-      }
-      return !prev;
-    });
-  };
-
-  const toggleDailyGoal = () => {
-    setDailyGoalEnabled((prev) => {
-      if (prev) {
-        setDailyGoalValue('');
-      }
-      return !prev;
-    });
-  };
 
   const toggleSelectFriend = (id) => {
     setSelectedFriendIds((prev) =>
@@ -115,35 +93,12 @@ export default function AddEventScreen() {
       }
     }
 
-    let normalizedEventGoalValue = null;
-    if (eventGoalEnabled) {
-      const numericGoal = Number(eventGoalValue);
-      if (!Number.isFinite(numericGoal) || numericGoal <= 0) {
-        Alert.alert('אנא הגדר מספר יעד גדול מאפס עבור יעד האירוע');
-        return;
-      }
-      normalizedEventGoalValue = Math.floor(numericGoal);
-    }
-
-    let normalizedDailyGoalValue = null;
-    if (dailyGoalEnabled) {
-      const numericGoal = Number(dailyGoalValue);
-      if (!Number.isFinite(numericGoal) || numericGoal <= 0) {
-        Alert.alert('אנא הגדר מספר יעד גדול מאפס עבור המגבלה היומית');
-        return;
-      }
-      normalizedDailyGoalValue = Math.floor(numericGoal);
-    }
-
     const newEvent = {
       name,
       color,
       totalColor: 0,
       shared: isShared,
       type: isTemporary ? 'temporary' : 'regular',
-      goalType: eventGoalEnabled ? 'event' : 'none',
-      ...(eventGoalEnabled ? { goalValue: normalizedEventGoalValue } : {}),
-      ...(dailyGoalEnabled ? { goalDailyValue: normalizedDailyGoalValue } : {}),
       ...(isTemporary
         ? {
           expiresAt: expirationDate.toISOString(),
@@ -240,64 +195,6 @@ export default function AddEventScreen() {
         </View>
         <View style={styles.colorPreview}>
           <View style={[styles.colorSwatch, { backgroundColor: color }]} />
-        </View>
-      </View>
-
-      <View style={styles.sectionCard}>
-        <Text style={styles.label}>הגדרת יעדים ומגבלות</Text>
-        <Text style={styles.helperText}>
-          ניתן להגדיר יעד כולל לאירוע, מגבלת תיעוד יומית – או לשלב בין שניהם.
-        </Text>
-        <View style={styles.goalOptionsRow}>
-          <TouchableOpacity
-            style={[styles.goalOptionButton, eventGoalEnabled && styles.goalOptionButtonActive]}
-            onPress={toggleEventGoal}
-            activeOpacity={0.85}
-          >
-            <Text style={[styles.goalOptionText, eventGoalEnabled && styles.goalOptionTextActive]}>
-              🎯 יעד לאירוע
-            </Text>
-          </TouchableOpacity>
-          {eventGoalEnabled && (
-            <View style={styles.goalInputWrapper}>
-              <Text style={styles.helperText}>
-                לאחר שנרשמים מספר התיעודים שהוגדר – האירוע מסתיים אוטומטית.
-              </Text>
-              <TextInput
-                value={eventGoalValue}
-                onChangeText={setEventGoalValue}
-                keyboardType="number-pad"
-                placeholder="מספר תיעודים כולל"
-                placeholderTextColor="#9aa0a6"
-                style={styles.goalInput}
-              />
-            </View>
-          )}
-
-          <TouchableOpacity
-            style={[styles.goalOptionButton, dailyGoalEnabled && styles.goalOptionButtonActive]}
-            onPress={toggleDailyGoal}
-            activeOpacity={0.85}
-          >
-            <Text style={[styles.goalOptionText, dailyGoalEnabled && styles.goalOptionTextActive]}>
-              📅 מגבלה יומית
-            </Text>
-          </TouchableOpacity>
-          {dailyGoalEnabled && (
-            <View style={styles.goalInputWrapper}>
-              <Text style={styles.helperText}>
-                הגבלת מספר התיעודים שניתן להוסיף בכל יום. הספירה מתאפסת בחצות ומאפשרת מחיקה והוספה מחדש.
-              </Text>
-              <TextInput
-                value={dailyGoalValue}
-                onChangeText={setDailyGoalValue}
-                keyboardType="number-pad"
-                placeholder="מספר תיעודים יומי"
-                placeholderTextColor="#9aa0a6"
-                style={styles.goalInput}
-              />
-            </View>
-          )}
         </View>
       </View>
 
@@ -488,45 +385,6 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 1,
     gap: 14,
-  },
-  goalOptionsRow: {
-    flexDirection: 'column',
-    gap: 12,
-  },
-  goalOptionButton: {
-    backgroundColor: '#eef3fb',
-    borderRadius: 14,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderWidth: 1,
-    borderColor: '#d5e0f0',
-    alignSelf: 'stretch',
-  },
-  goalOptionButtonActive: {
-    backgroundColor: '#0f766e10',
-    borderColor: '#0f766e',
-  },
-  goalOptionText: {
-    textAlign: 'center',
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#2f3c4a',
-  },
-  goalOptionTextActive: {
-    color: '#0f766e',
-  },
-  goalInputWrapper: {
-    gap: 10,
-  },
-  goalInput: {
-    borderWidth: 1,
-    borderColor: '#d0d7e2',
-    borderRadius: 14,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    fontSize: 16,
-    textAlign: 'right',
-    color: '#2f3c4a',
   },
   label: {
     fontSize: 17,

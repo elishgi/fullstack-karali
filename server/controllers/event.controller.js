@@ -25,50 +25,10 @@ const createEvent = async (req, res) => {
       expiresAt,
       expirationDurationMs,
       type = 'regular',
-      goalType = 'none',
-      goalValue,
-      goalDailyValue,
     } = req.body;
 
     if (!['regular', 'temporary'].includes(type)) {
       return res.status(400).json({ message: 'סוג האירוע אינו תקין' });
-    }
-
-    const allowedGoals = ['none', 'event', 'daily'];
-    if (!allowedGoals.includes(goalType)) {
-      return res.status(400).json({ message: 'סוג היעד אינו תקין' });
-    }
-
-    const parsePositiveInteger = (value) => {
-      const numeric = Number(value);
-      if (!Number.isFinite(numeric) || numeric <= 0) {
-        return null;
-      }
-      return Math.floor(numeric);
-    };
-
-    let normalizedGoalType = goalType === 'daily' ? 'none' : goalType;
-    let normalizedGoalValue = null;
-    let normalizedDailyGoalValue = null;
-
-    if (goalType === 'event') {
-      normalizedGoalValue = parsePositiveInteger(goalValue);
-      if (!normalizedGoalValue) {
-        return res.status(400).json({ message: 'ערך יעד האירוע אינו תקין' });
-      }
-    }
-
-    const requestedDailyGoal =
-      goalDailyValue !== undefined ? goalDailyValue : goalType === 'daily' ? goalValue : null;
-    if (requestedDailyGoal !== null && requestedDailyGoal !== undefined && requestedDailyGoal !== '') {
-      normalizedDailyGoalValue = parsePositiveInteger(requestedDailyGoal);
-      if (!normalizedDailyGoalValue) {
-        return res.status(400).json({ message: 'ערך היעד היומי אינו תקין' });
-      }
-    }
-
-    if (goalType === 'daily') {
-      normalizedGoalValue = null;
     }
 
     let parsedExpiresAt = null;
@@ -95,12 +55,6 @@ const createEvent = async (req, res) => {
       expiresAt: parsedExpiresAt,
       expirationDurationMs: normalizedDuration,
       type,
-      goalType: normalizedGoalType,
-      goalValue: normalizedGoalValue,
-      goalDailyValue: normalizedDailyGoalValue,
-      goalDailyCount: 0,
-      goalDailyLastReset: null,
-      goalCompletedAt: null,
     });
 
     await newEvent.save();
@@ -126,182 +80,75 @@ const updateEvent = async (req, res) => {
       archived,
       lastPressedAt,
       type,
-      goalType,
-      goalValue,
-      goalDailyValue,
-      goalDailyCount,
-      goalDailyLastReset,
-      goalCompletedAt,
     } = req.body;
 
-    const event = await Event.findOne({ _id: id, userId: req.user._id });
-
-    if (!event) {
-      return res.status(404).json({ message: 'אירוע לא נמצא' });
-    }
-
-    if (name !== undefined) {
-      event.name = name;
-    }
-
-    if (color !== undefined) {
-      event.color = color;
-    }
-
-    if (totalColor !== undefined) {
-      event.totalColor = totalColor;
-    }
+    const updates = {
+      ...(name !== undefined ? { name } : {}),
+      ...(color !== undefined ? { color } : {}),
+      ...(totalColor !== undefined ? { totalColor } : {}),
+    };
 
     if (typeof shared === 'boolean') {
-      event.shared = shared;
+      updates.shared = shared;
     }
 
     if (participants !== undefined) {
-      event.participants = Array.isArray(participants) ? participants : [];
+      updates.participants = Array.isArray(participants) ? participants : [];
     }
 
     if (type !== undefined) {
       if (!['regular', 'temporary'].includes(type)) {
         return res.status(400).json({ message: 'סוג האירוע אינו תקין' });
       }
-      event.type = type;
+      updates.type = type;
     }
 
     if (expiresAt !== undefined) {
       if (expiresAt === null) {
-        event.expiresAt = null;
+        updates.expiresAt = null;
       } else {
         const parsed = new Date(expiresAt);
         if (Number.isNaN(parsed.getTime())) {
           return res.status(400).json({ message: 'תאריך תפוגה אינו תקין' });
         }
-        event.expiresAt = parsed;
+        updates.expiresAt = parsed;
       }
     }
 
     if (expirationDurationMs !== undefined) {
-      event.expirationDurationMs =
+      updates.expirationDurationMs =
         typeof expirationDurationMs === 'number' && expirationDurationMs > 0
           ? expirationDurationMs
           : null;
     }
 
     if (typeof expirationNotified === 'boolean') {
-      event.expirationNotified = expirationNotified;
+      updates.expirationNotified = expirationNotified;
     }
 
     if (typeof expirationAcknowledged === 'boolean') {
-      event.expirationAcknowledged = expirationAcknowledged;
+      updates.expirationAcknowledged = expirationAcknowledged;
     }
 
     if (typeof archived === 'boolean') {
-      event.archived = archived;
+      updates.archived = archived;
     }
 
     if (lastPressedAt !== undefined) {
-      event.lastPressedAt = lastPressedAt ? new Date(lastPressedAt) : null;
+      updates.lastPressedAt = lastPressedAt ? new Date(lastPressedAt) : null;
     }
 
-    const allowedGoals = ['none', 'event', 'daily'];
-    const parsePositiveInteger = (value) => {
-      const numeric = Number(value);
-      if (!Number.isFinite(numeric) || numeric <= 0) {
-        return null;
-      }
-      return Math.floor(numeric);
-    };
+    const updatedEvent = await Event.findOneAndUpdate(
+      { _id: id, userId: req.user._id },
+      updates,
+      { new: true }
+    );
 
-    let nextGoalType = event.goalType;
-    let nextGoalValue = event.goalValue;
-    let nextDailyGoalValue = event.goalDailyValue;
-
-    const goalTypeProvided = goalType !== undefined;
-
-    if (goalTypeProvided) {
-      if (!allowedGoals.includes(goalType)) {
-        return res.status(400).json({ message: 'סוג היעד אינו תקין' });
-      }
-      if (goalType === 'daily') {
-        nextGoalType = 'none';
-        nextGoalValue = null;
-        event.goalCompletedAt = null;
-      } else {
-        nextGoalType = goalType;
-        if (goalType === 'none') {
-          nextGoalValue = null;
-          event.goalCompletedAt = null;
-        }
-      }
+    if (!updatedEvent) {
+      return res.status(404).json({ message: 'אירוע לא נמצא' });
     }
 
-    const legacyDailyUpdate = goalType === 'daily' && goalDailyValue === undefined;
-
-    if (goalDailyValue !== undefined) {
-      if (goalDailyValue === null || goalDailyValue === '') {
-        nextDailyGoalValue = null;
-        event.goalDailyCount = 0;
-        event.goalDailyLastReset = null;
-      } else {
-        const parsedDaily = parsePositiveInteger(goalDailyValue);
-        if (!parsedDaily) {
-          return res.status(400).json({ message: 'ערך היעד היומי אינו תקין' });
-        }
-        nextDailyGoalValue = parsedDaily;
-      }
-    }
-
-    if (goalValue !== undefined) {
-      if (legacyDailyUpdate) {
-        if (goalValue === null || goalValue === '') {
-          nextDailyGoalValue = null;
-          event.goalDailyCount = 0;
-          event.goalDailyLastReset = null;
-        } else {
-          const parsedDaily = parsePositiveInteger(goalValue);
-          if (!parsedDaily) {
-            return res.status(400).json({ message: 'ערך היעד היומי אינו תקין' });
-          }
-          nextDailyGoalValue = parsedDaily;
-        }
-      } else if (goalValue === null || goalValue === '') {
-        nextGoalValue = null;
-        if (goalTypeProvided ? goalType === 'event' : nextGoalType === 'event') {
-          event.goalCompletedAt = null;
-        }
-      } else {
-        const parsedGoal = parsePositiveInteger(goalValue);
-        if (!parsedGoal) {
-          return res.status(400).json({ message: 'ערך היעד אינו תקין' });
-        }
-        if (goalTypeProvided ? goalType === 'event' : nextGoalType === 'event' || event.goalType === 'event') {
-          nextGoalValue = parsedGoal;
-        }
-      }
-    }
-
-    event.goalType = nextGoalType;
-    event.goalValue = nextGoalValue;
-    event.goalDailyValue = nextDailyGoalValue;
-
-    if (goalDailyCount !== undefined) {
-      event.goalDailyCount = Number.isFinite(Number(goalDailyCount))
-        ? Number(goalDailyCount)
-        : event.goalDailyCount;
-    }
-
-    if (goalDailyLastReset !== undefined) {
-      event.goalDailyLastReset = goalDailyLastReset
-        ? new Date(goalDailyLastReset)
-        : null;
-    }
-
-    if (goalCompletedAt !== undefined) {
-      event.goalCompletedAt = goalCompletedAt ? new Date(goalCompletedAt) : null;
-    }
-
-    await event.save();
-
-    res.json(event);
+    res.json(updatedEvent);
   } catch (err) {
     res.status(400).json({ message: 'שגיאה בעדכון אירוע' });
   }
@@ -484,9 +331,6 @@ const restartEvent = async (req, res) => {
     event.expirationNotified = false;
     event.expirationAcknowledged = false;
     event.archived = false;
-    event.goalDailyCount = 0;
-    event.goalDailyLastReset = null;
-    event.goalCompletedAt = null;
 
     await event.save();
 
