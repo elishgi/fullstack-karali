@@ -51,15 +51,41 @@ const EventButton = ({ item, isEditMode, onPress, onLongPress, onEditName, onEdi
       badges.push({ key: 'regular', label: 'אירוע קבוע', icon: 'repeat-outline', variant: 'regular' });
     }
 
-    const goalValue = Number(item?.goalValue);
-    if (item?.goalType === 'event' && Number.isFinite(goalValue) && goalValue > 0) {
-      badges.push({ key: 'goal-event', label: `יעד ${goalValue}`, icon: 'flag-outline', variant: 'goalEvent' });
-    } else if (item?.goalType === 'daily' && Number.isFinite(goalValue) && goalValue > 0) {
-      badges.push({ key: 'goal-daily', label: `יומי ${goalValue}`, icon: 'calendar-outline', variant: 'goalDaily' });
+    const eventGoalValue = (() => {
+      if (item?.goalType !== 'event') {
+        return null;
+      }
+      const value = Number(item?.goalValue);
+      if (!Number.isFinite(value) || value <= 0) {
+        return null;
+      }
+      return Math.floor(value);
+    })();
+
+    const dailyGoalValue = (() => {
+      const source =
+        item?.goalDailyValue !== undefined && item?.goalDailyValue !== null
+          ? item.goalDailyValue
+          : item?.goalType === 'daily'
+            ? item.goalValue
+            : null;
+      const value = Number(source);
+      if (!Number.isFinite(value) || value <= 0) {
+        return null;
+      }
+      return Math.floor(value);
+    })();
+
+    if (eventGoalValue) {
+      badges.push({ key: 'goal-event', label: `יעד ${eventGoalValue}`, icon: 'flag-outline', variant: 'goalEvent' });
+    }
+
+    if (dailyGoalValue) {
+      badges.push({ key: 'goal-daily', label: `יומי ${dailyGoalValue}`, icon: 'calendar-outline', variant: 'goalDaily' });
     }
 
     return badges;
-  }, [expired, item?.shared, item?.type, item?.expirationLabel, item?.goalType, item?.goalValue]);
+  }, [expired, item?.shared, item?.type, item?.expirationLabel, item?.goalType, item?.goalValue, item?.goalDailyValue]);
 
   const timerTone = expired ? 'expired' : item?.expirationTone || 'none';
   const timerVariant = TIMER_VARIANTS[timerTone] || TIMER_VARIANTS.info;

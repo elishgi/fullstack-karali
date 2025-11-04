@@ -80,8 +80,30 @@ const getStartOfDay = (date) => {
   return copy;
 };
 
-const parseGoalValue = (event) => {
-  const value = Number(event?.goalValue);
+const getEventGoalValue = (event) => {
+  if (!event || event.goalType !== GOAL_TYPES.EVENT) {
+    return null;
+  }
+  const value = Number(event.goalValue);
+  if (!Number.isFinite(value) || value <= 0) {
+    return null;
+  }
+  return Math.floor(value);
+};
+
+const getDailyGoalValue = (event) => {
+  if (!event) {
+    return null;
+  }
+
+  const source =
+    event.goalDailyValue !== undefined && event.goalDailyValue !== null
+      ? event.goalDailyValue
+      : event.goalType === GOAL_TYPES.DAILY
+        ? event.goalValue
+        : null;
+
+  const value = Number(source);
   if (!Number.isFinite(value) || value <= 0) {
     return null;
   }
@@ -90,17 +112,15 @@ const parseGoalValue = (event) => {
 
 const hasEventGoal = (event) => {
   if (!event) return false;
-  if (!event.goalType || event.goalType === GOAL_TYPES.NONE) {
-    return false;
-  }
-  return parseGoalValue(event) !== null;
+  return getEventGoalValue(event) !== null;
 };
 
 const hasEventReachedGoal = (event) => {
-  if (!event || event.goalType !== GOAL_TYPES.EVENT) {
+  if (!event) {
     return false;
   }
-  if (!hasEventGoal(event)) {
+  const goalValue = getEventGoalValue(event);
+  if (!goalValue) {
     return false;
   }
   if (!event.goalCompletedAt) {
@@ -111,10 +131,8 @@ const hasEventReachedGoal = (event) => {
 };
 
 const getGoalDailyCountForToday = (event) => {
-  if (!event || event.goalType !== GOAL_TYPES.DAILY) {
-    return 0;
-  }
-  if (!hasEventGoal(event)) {
+  const dailyGoalValue = getDailyGoalValue(event);
+  if (!dailyGoalValue) {
     return 0;
   }
   const resetDate = event.goalDailyLastReset ? new Date(event.goalDailyLastReset) : null;
@@ -126,38 +144,47 @@ const getGoalDailyCountForToday = (event) => {
     return 0;
   }
   const count = Number(event.goalDailyCount);
-  return Number.isFinite(count) && count > 0 ? count : 0;
+  return Number.isFinite(count) && count > 0 ? Math.min(count, dailyGoalValue) : 0;
 };
 
 const buildGoalInfo = (event) => {
-  const goalValue = parseGoalValue(event);
-  if (!goalValue) {
+  const eventGoalValue = getEventGoalValue(event);
+  const dailyGoalValue = getDailyGoalValue(event);
+
+  if (!eventGoalValue && !dailyGoalValue) {
     return null;
   }
 
-  if (event.goalType === GOAL_TYPES.EVENT) {
+  const todayCount = getGoalDailyCountForToday(event);
+
+  if (eventGoalValue && dailyGoalValue) {
+    const current = Number(event.totalColor) || 0;
+    const tone = todayCount >= dailyGoalValue ? 'warning' : 'info';
+    return {
+      label: `כולל: ${Math.min(current, eventGoalValue)}/${eventGoalValue} | היום: ${Math.min(todayCount, dailyGoalValue)}/${dailyGoalValue}`,
+      tone,
+      icon: 'flag-outline',
+    };
+  }
+
+  if (eventGoalValue) {
     if (hasEventReachedGoal(event)) {
       return null;
     }
     const current = Number(event.totalColor) || 0;
     return {
-      label: `יעד תיעודים: ${Math.min(current, goalValue)}/${goalValue}`,
+      label: `יעד תיעודים: ${Math.min(current, eventGoalValue)}/${eventGoalValue}`,
       tone: 'info',
       icon: 'flag-outline',
     };
   }
 
-  if (event.goalType === GOAL_TYPES.DAILY) {
-    const todayCount = getGoalDailyCountForToday(event);
-    const tone = todayCount >= goalValue ? 'warning' : 'info';
-    return {
-      label: `היום: ${Math.min(todayCount, goalValue)}/${goalValue}`,
-      tone,
-      icon: 'calendar-outline',
-    };
-  }
-
-  return null;
+  const tone = todayCount >= dailyGoalValue ? 'warning' : 'info';
+  return {
+    label: `היום: ${Math.min(todayCount, dailyGoalValue)}/${dailyGoalValue}`,
+    tone,
+    icon: 'calendar-outline',
+  };
 };
 
 const isEventExpired = (event) => {
@@ -172,7 +199,7 @@ const isEventExpired = (event) => {
 
 const formatExpirationCountdown = (event) => {
   if (hasEventReachedGoal(event)) {
-    const goalValue = parseGoalValue(event);
+    const goalValue = getEventGoalValue(event);
     const label = goalValue
       ? `היעד הושלם (${goalValue} תיעודים)`
       : 'היעד הושלם';
@@ -594,7 +621,7 @@ const HomeScreen = ({ route }) => {
 
   const showExpiredEventAlert = useCallback(
     (event) => {
-      const goalValue = parseGoalValue(event);
+      const goalValue = getEventGoalValue(event);
       const expiresAt = parseDateSafely(event.expiresAt);
       let baseMessage = '';
 
@@ -709,13 +736,14 @@ const HomeScreen = ({ route }) => {
           totalColor: nextTotal,
         };
 
-        const goalValue = parseGoalValue(event);
+        const goalValue = getEventGoalValue(event);
 
-        if (event.goalType === GOAL_TYPES.EVENT && goalValue && nextTotal < goalValue) {
+        if (goalValue && nextTotal < goalValue) {
           payload.goalCompletedAt = null;
         }
 
-        if (event.goalType === GOAL_TYPES.DAILY && goalValue) {
+        const dailyGoalValue = getDailyGoalValue(event);
+        if (dailyGoalValue) {
           const logDate = new Date(lastLog.timestamp);
           if (!Number.isNaN(logDate.getTime())) {
             const logDayStart = getStartOfDay(logDate);

@@ -27,6 +27,7 @@ const createEvent = async (req, res) => {
       type = 'regular',
       goalType = 'none',
       goalValue,
+      goalDailyValue,
     } = req.body;
 
     if (!['regular', 'temporary'].includes(type)) {
@@ -38,13 +39,36 @@ const createEvent = async (req, res) => {
       return res.status(400).json({ message: 'סוג היעד אינו תקין' });
     }
 
-    let normalizedGoalValue = null;
-    if (goalType !== 'none') {
-      const numericGoal = Number(goalValue);
-      if (!Number.isFinite(numericGoal) || numericGoal <= 0) {
-        return res.status(400).json({ message: 'ערך היעד אינו תקין' });
+    const parsePositiveInteger = (value) => {
+      const numeric = Number(value);
+      if (!Number.isFinite(numeric) || numeric <= 0) {
+        return null;
       }
-      normalizedGoalValue = Math.floor(numericGoal);
+      return Math.floor(numeric);
+    };
+
+    let normalizedGoalType = goalType === 'daily' ? 'none' : goalType;
+    let normalizedGoalValue = null;
+    let normalizedDailyGoalValue = null;
+
+    if (goalType === 'event') {
+      normalizedGoalValue = parsePositiveInteger(goalValue);
+      if (!normalizedGoalValue) {
+        return res.status(400).json({ message: 'ערך יעד האירוע אינו תקין' });
+      }
+    }
+
+    const requestedDailyGoal =
+      goalDailyValue !== undefined ? goalDailyValue : goalType === 'daily' ? goalValue : null;
+    if (requestedDailyGoal !== null && requestedDailyGoal !== undefined && requestedDailyGoal !== '') {
+      normalizedDailyGoalValue = parsePositiveInteger(requestedDailyGoal);
+      if (!normalizedDailyGoalValue) {
+        return res.status(400).json({ message: 'ערך היעד היומי אינו תקין' });
+      }
+    }
+
+    if (goalType === 'daily') {
+      normalizedGoalValue = null;
     }
 
     let parsedExpiresAt = null;
@@ -71,8 +95,9 @@ const createEvent = async (req, res) => {
       expiresAt: parsedExpiresAt,
       expirationDurationMs: normalizedDuration,
       type,
-      goalType,
+      goalType: normalizedGoalType,
       goalValue: normalizedGoalValue,
+      goalDailyValue: normalizedDailyGoalValue,
       goalDailyCount: 0,
       goalDailyLastReset: null,
       goalCompletedAt: null,
@@ -103,6 +128,7 @@ const updateEvent = async (req, res) => {
       type,
       goalType,
       goalValue,
+      goalDailyValue,
       goalDailyCount,
       goalDailyLastReset,
       goalCompletedAt,
@@ -177,30 +203,85 @@ const updateEvent = async (req, res) => {
     }
 
     const allowedGoals = ['none', 'event', 'daily'];
-    if (goalType !== undefined) {
+    const parsePositiveInteger = (value) => {
+      const numeric = Number(value);
+      if (!Number.isFinite(numeric) || numeric <= 0) {
+        return null;
+      }
+      return Math.floor(numeric);
+    };
+
+    let nextGoalType = event.goalType;
+    let nextGoalValue = event.goalValue;
+    let nextDailyGoalValue = event.goalDailyValue;
+
+    const goalTypeProvided = goalType !== undefined;
+
+    if (goalTypeProvided) {
       if (!allowedGoals.includes(goalType)) {
         return res.status(400).json({ message: 'סוג היעד אינו תקין' });
       }
-      event.goalType = goalType;
-      if (goalType === 'none') {
-        event.goalValue = null;
+      if (goalType === 'daily') {
+        nextGoalType = 'none';
+        nextGoalValue = null;
+        event.goalCompletedAt = null;
+      } else {
+        nextGoalType = goalType;
+        if (goalType === 'none') {
+          nextGoalValue = null;
+          event.goalCompletedAt = null;
+        }
+      }
+    }
+
+    const legacyDailyUpdate = goalType === 'daily' && goalDailyValue === undefined;
+
+    if (goalDailyValue !== undefined) {
+      if (goalDailyValue === null || goalDailyValue === '') {
+        nextDailyGoalValue = null;
         event.goalDailyCount = 0;
         event.goalDailyLastReset = null;
-        event.goalCompletedAt = null;
+      } else {
+        const parsedDaily = parsePositiveInteger(goalDailyValue);
+        if (!parsedDaily) {
+          return res.status(400).json({ message: 'ערך היעד היומי אינו תקין' });
+        }
+        nextDailyGoalValue = parsedDaily;
       }
     }
 
     if (goalValue !== undefined) {
-      if (goalValue === null || goalValue === '') {
-        event.goalValue = null;
+      if (legacyDailyUpdate) {
+        if (goalValue === null || goalValue === '') {
+          nextDailyGoalValue = null;
+          event.goalDailyCount = 0;
+          event.goalDailyLastReset = null;
+        } else {
+          const parsedDaily = parsePositiveInteger(goalValue);
+          if (!parsedDaily) {
+            return res.status(400).json({ message: 'ערך היעד היומי אינו תקין' });
+          }
+          nextDailyGoalValue = parsedDaily;
+        }
+      } else if (goalValue === null || goalValue === '') {
+        nextGoalValue = null;
+        if (goalTypeProvided ? goalType === 'event' : nextGoalType === 'event') {
+          event.goalCompletedAt = null;
+        }
       } else {
-        const numericGoal = Number(goalValue);
-        if (!Number.isFinite(numericGoal) || numericGoal <= 0) {
+        const parsedGoal = parsePositiveInteger(goalValue);
+        if (!parsedGoal) {
           return res.status(400).json({ message: 'ערך היעד אינו תקין' });
         }
-        event.goalValue = Math.floor(numericGoal);
+        if (goalTypeProvided ? goalType === 'event' : nextGoalType === 'event' || event.goalType === 'event') {
+          nextGoalValue = parsedGoal;
+        }
       }
     }
+
+    event.goalType = nextGoalType;
+    event.goalValue = nextGoalValue;
+    event.goalDailyValue = nextDailyGoalValue;
 
     if (goalDailyCount !== undefined) {
       event.goalDailyCount = Number.isFinite(Number(goalDailyCount))

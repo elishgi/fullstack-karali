@@ -28,8 +28,35 @@ const getStartOfDay = (date) => {
   return copy;
 };
 
-const hasGoalValue = (event) =>
-  typeof event.goalValue === 'number' && Number.isFinite(event.goalValue) && event.goalValue > 0;
+const getEventGoalValue = (event) => {
+  if (!event || event.goalType !== GOAL_TYPES.EVENT) {
+    return null;
+  }
+  const value = Number(event.goalValue);
+  if (!Number.isFinite(value) || value <= 0) {
+    return null;
+  }
+  return Math.floor(value);
+};
+
+const getDailyGoalValue = (event) => {
+  if (!event) {
+    return null;
+  }
+
+  const rawValue =
+    event.goalDailyValue !== undefined && event.goalDailyValue !== null
+      ? event.goalDailyValue
+      : event.goalType === GOAL_TYPES.DAILY
+        ? event.goalValue
+        : null;
+
+  const value = Number(rawValue);
+  if (!Number.isFinite(value) || value <= 0) {
+    return null;
+  }
+  return Math.floor(value);
+};
 
 //שליפת תיעודים עם אפשרויות סינון
 const getAllLogs = async (req, res) => {
@@ -89,7 +116,10 @@ const createLog = async (req, res) => {
     const now = new Date();
     const todayStart = getStartOfDay(now);
 
-    if (event.goalType === GOAL_TYPES.EVENT && hasGoalValue(event)) {
+    const eventGoalValue = getEventGoalValue(event);
+    const dailyGoalValue = getDailyGoalValue(event);
+
+    if (eventGoalValue) {
       if (event.goalCompletedAt) {
         return res.status(409).json({
           message: 'האירוע הגיע ליעד התיעודים שלו.',
@@ -98,24 +128,24 @@ const createLog = async (req, res) => {
       }
     }
 
-    if (event.goalType === GOAL_TYPES.DAILY && hasGoalValue(event)) {
+    if (dailyGoalValue) {
       const lastReset = event.goalDailyLastReset ? new Date(event.goalDailyLastReset) : null;
       if (!lastReset || lastReset < todayStart) {
         event.goalDailyCount = 0;
         event.goalDailyLastReset = todayStart;
       }
 
-      if (event.goalDailyCount >= event.goalValue) {
+      if (event.goalDailyCount >= dailyGoalValue) {
         await event.save();
         return res.status(409).json({
-          message: `חרגת ממגבלת התיעודים היומית (${event.goalValue}). ניתן להוסיף תיעוד חדש לאחר חצות.`,
+          message: `חרגת ממגבלת התיעודים היומית (${dailyGoalValue}). ניתן להוסיף תיעוד חדש לאחר חצות.`,
           code: 'daily-goal-reached',
         });
       }
     }
 
     const existingCount = await Log.countDocuments({ eventId, userId: req.user._id });
-    if (event.goalType === GOAL_TYPES.EVENT && hasGoalValue(event) && existingCount >= event.goalValue) {
+    if (eventGoalValue && existingCount >= eventGoalValue) {
       event.goalCompletedAt = event.goalCompletedAt || now;
       await event.save();
       return res.status(409).json({
@@ -137,9 +167,11 @@ const createLog = async (req, res) => {
       }
     }
 
+    const eventName = (event.name || '').trim() || 'ללא שם';
+
     const newLog = new Log({
       eventId,
-      eventName: event.name,
+      eventName,
       timestamp: now,
       timeOfDay,
       dayOfWeek,
@@ -157,12 +189,12 @@ const createLog = async (req, res) => {
     event.totalColor = updatedTotal;
     event.lastPressedAt = now;
 
-    if (event.goalType === GOAL_TYPES.DAILY && hasGoalValue(event)) {
+    if (dailyGoalValue) {
       event.goalDailyCount = (event.goalDailyCount || 0) + 1;
       event.goalDailyLastReset = todayStart;
     }
 
-    if (event.goalType === GOAL_TYPES.EVENT && hasGoalValue(event) && updatedTotal >= event.goalValue) {
+    if (eventGoalValue && updatedTotal >= eventGoalValue) {
       goalCompleted = true;
       event.goalCompletedAt = now;
       event.expirationNotified = false;
@@ -182,10 +214,49 @@ const deleteLog = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const deletedLog = await Log.findByIdAndDelete(id);
+    const log = await Log.findOne({ _id: id, userId: req.user._id });
 
-    if (!deletedLog) {
-      return res.status(404).json({message: 'התיעוד לא נמצא' });
+    if (!log) {
+      return res.status(404).json({ message: 'התיעוד לא נמצא' });
+    }
+
+    await log.deleteOne();
+
+    const event = await Event.findOne({ _id: log.eventId, userId: req.user._id });
+    if (event) {
+      const totalCount = await Log.countDocuments({ eventId: log.eventId, userId: req.user._id });
+      event.totalColor = totalCount;
+
+      const latestLog = await Log.findOne({ eventId: log.eventId, userId: req.user._id })
+        .sort({ timestamp: -1 })
+        .limit(1);
+      event.lastPressedAt = latestLog ? latestLog.timestamp : null;
+
+      const todayStart = getStartOfDay(new Date());
+      const tomorrowStart = new Date(todayStart);
+      tomorrowStart.setDate(tomorrowStart.getDate() + 1);
+
+      const todayCount = await Log.countDocuments({
+        eventId: log.eventId,
+        userId: req.user._id,
+        timestamp: { $gte: todayStart, $lt: tomorrowStart },
+      });
+
+      if (todayCount > 0) {
+        event.goalDailyCount = todayCount;
+        event.goalDailyLastReset = todayStart;
+      } else {
+        event.goalDailyCount = 0;
+        const dailyGoalValue = getDailyGoalValue(event);
+        event.goalDailyLastReset = dailyGoalValue ? todayStart : null;
+      }
+
+      const eventGoalValue = getEventGoalValue(event);
+      if (eventGoalValue && totalCount < eventGoalValue) {
+        event.goalCompletedAt = null;
+      }
+
+      await event.save();
     }
 
     res.json({ message: 'התיעוד נמחק בהצלחה' });

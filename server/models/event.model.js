@@ -65,6 +65,10 @@ const eventSchema = new mongoose.Schema({
         type: Number,
         default: null
     },
+    goalDailyValue: {
+        type: Number,
+        default: null
+    },
     goalDailyCount: {
         type: Number,
         default: 0
