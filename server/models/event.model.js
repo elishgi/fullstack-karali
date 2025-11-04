@@ -55,6 +55,26 @@ const eventSchema = new mongoose.Schema({
     lastPressedAt: {
         type: Date,
         default: null
+    },
+    eventGoalValue: {
+        type: Number,
+        default: null
+    },
+    eventGoalCompletedAt: {
+        type: Date,
+        default: null
+    },
+    dailyGoalValue: {
+        type: Number,
+        default: null
+    },
+    dailyGoalCount: {
+        type: Number,
+        default: 0
+    },
+    dailyGoalLastReset: {
+        type: Date,
+        default: null
     }
 }, {
     timestamps: true
