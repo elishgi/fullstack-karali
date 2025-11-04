@@ -71,6 +71,8 @@ const createLog = async (req, res) => {
     const days = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
     const dayOfWeek = days[now.getDay()];
 
+    const eventName = (event.name || '').trim() || 'ללא שם';
+
     const newLog = new Log({
       eventId,
       eventName,
@@ -97,10 +99,49 @@ const deleteLog = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const deletedLog = await Log.findByIdAndDelete(id);
+    const log = await Log.findOne({ _id: id, userId: req.user._id });
 
-    if (!deletedLog) {
-      return res.status(404).json({message: 'התיעוד לא נמצא' });
+    if (!log) {
+      return res.status(404).json({ message: 'התיעוד לא נמצא' });
+    }
+
+    await log.deleteOne();
+
+    const event = await Event.findOne({ _id: log.eventId, userId: req.user._id });
+    if (event) {
+      const totalCount = await Log.countDocuments({ eventId: log.eventId, userId: req.user._id });
+      event.totalColor = totalCount;
+
+      const latestLog = await Log.findOne({ eventId: log.eventId, userId: req.user._id })
+        .sort({ timestamp: -1 })
+        .limit(1);
+      event.lastPressedAt = latestLog ? latestLog.timestamp : null;
+
+      const todayStart = getStartOfDay(new Date());
+      const tomorrowStart = new Date(todayStart);
+      tomorrowStart.setDate(tomorrowStart.getDate() + 1);
+
+      const todayCount = await Log.countDocuments({
+        eventId: log.eventId,
+        userId: req.user._id,
+        timestamp: { $gte: todayStart, $lt: tomorrowStart },
+      });
+
+      if (todayCount > 0) {
+        event.goalDailyCount = todayCount;
+        event.goalDailyLastReset = todayStart;
+      } else {
+        event.goalDailyCount = 0;
+        const dailyGoalValue = getDailyGoalValue(event);
+        event.goalDailyLastReset = dailyGoalValue ? todayStart : null;
+      }
+
+      const eventGoalValue = getEventGoalValue(event);
+      if (eventGoalValue && totalCount < eventGoalValue) {
+        event.goalCompletedAt = null;
+      }
+
+      await event.save();
     }
 
     res.json({ message: 'התיעוד נמחק בהצלחה' });
