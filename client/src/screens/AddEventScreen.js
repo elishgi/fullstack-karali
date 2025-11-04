@@ -34,6 +34,8 @@ export default function AddEventScreen() {
   const [showTimePicker, setShowTimePicker] = useState(false);
 
   const [isShared, setIsShared] = useState(false);
+  const [goalType, setGoalType] = useState('none');
+  const [goalValue, setGoalValue] = useState('');
   const [friends] = useState([
     { id: 'u1', name: 'אשתי היקרה' },
     { id: 'u2', name: 'נועה לוי' },
@@ -41,6 +43,19 @@ export default function AddEventScreen() {
     { id: 'u4', name: 'עלמה פרידמן' },
   ]);
   const [selectedFriendIds, setSelectedFriendIds] = useState([]);
+
+  const handleSelectGoalType = (type) => {
+    setGoalType((prev) => {
+      if (prev === type) {
+        setGoalValue('');
+        return 'none';
+      }
+      if (type === 'none') {
+        setGoalValue('');
+      }
+      return type;
+    });
+  };
 
   const toggleSelectFriend = (id) => {
     setSelectedFriendIds((prev) =>
@@ -93,12 +108,24 @@ export default function AddEventScreen() {
       }
     }
 
+    let normalizedGoalValue = null;
+    if (goalType !== 'none') {
+      const numericGoal = Number(goalValue);
+      if (!Number.isFinite(numericGoal) || numericGoal <= 0) {
+        Alert.alert('אנא הגדר מספר יעד גדול מאפס');
+        return;
+      }
+      normalizedGoalValue = Math.floor(numericGoal);
+    }
+
     const newEvent = {
       name,
       color,
       totalColor: 0,
       shared: isShared,
       type: isTemporary ? 'temporary' : 'regular',
+      goalType,
+      ...(goalType !== 'none' ? { goalValue: normalizedGoalValue } : {}),
       ...(isTemporary
         ? {
           expiresAt: expirationDate.toISOString(),
@@ -196,6 +223,56 @@ export default function AddEventScreen() {
         <View style={styles.colorPreview}>
           <View style={[styles.colorSwatch, { backgroundColor: color }]} />
         </View>
+      </View>
+
+      <View style={styles.sectionCard}>
+        <Text style={styles.label}>הגדרת יעד תיעודים</Text>
+        <View style={styles.goalOptionsRow}>
+          <TouchableOpacity
+            style={[styles.goalOptionButton, goalType === 'none' && styles.goalOptionButtonActive]}
+            onPress={() => handleSelectGoalType('none')}
+            activeOpacity={0.85}
+          >
+            <Text style={[styles.goalOptionText, goalType === 'none' && styles.goalOptionTextActive]}>
+              ללא יעד
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.goalOptionButton, goalType === 'event' && styles.goalOptionButtonActive]}
+            onPress={() => handleSelectGoalType('event')}
+            activeOpacity={0.85}
+          >
+            <Text style={[styles.goalOptionText, goalType === 'event' && styles.goalOptionTextActive]}>
+              יעד לאירוע
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.goalOptionButton, goalType === 'daily' && styles.goalOptionButtonActive]}
+            onPress={() => handleSelectGoalType('daily')}
+            activeOpacity={0.85}
+          >
+            <Text style={[styles.goalOptionText, goalType === 'daily' && styles.goalOptionTextActive]}>
+              מגבלה יומית
+            </Text>
+          </TouchableOpacity>
+        </View>
+        {goalType !== 'none' && (
+          <View style={styles.goalInputWrapper}>
+            <Text style={styles.helperText}>
+              {goalType === 'event'
+                ? 'לאחר שנרשמים מספר התיעודים שהוגדר – האירוע מסתיים.'
+                : 'ניתן להוסיף עד מספר התיעודים שהוגדר בכל יום. הספירה מתאפסת בחצות.'}
+            </Text>
+            <TextInput
+              value={goalValue}
+              onChangeText={setGoalValue}
+              keyboardType="number-pad"
+              placeholder="הכנס מספר יעד"
+              placeholderTextColor="#9aa0a6"
+              style={styles.goalInput}
+            />
+          </View>
+        )}
       </View>
 
       <View style={styles.sectionCard}>
@@ -385,6 +462,46 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 1,
     gap: 14,
+  },
+  goalOptionsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    justifyContent: 'space-between',
+  },
+  goalOptionButton: {
+    flex: 1,
+    backgroundColor: '#eef3fb',
+    borderRadius: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: '#d5e0f0',
+  },
+  goalOptionButtonActive: {
+    backgroundColor: '#0f766e10',
+    borderColor: '#0f766e',
+  },
+  goalOptionText: {
+    textAlign: 'center',
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#2f3c4a',
+  },
+  goalOptionTextActive: {
+    color: '#0f766e',
+  },
+  goalInputWrapper: {
+    gap: 10,
+  },
+  goalInput: {
+    borderWidth: 1,
+    borderColor: '#d0d7e2',
+    borderRadius: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    fontSize: 16,
+    textAlign: 'right',
+    color: '#2f3c4a',
   },
   label: {
     fontSize: 17,
