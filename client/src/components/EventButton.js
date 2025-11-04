@@ -9,8 +9,6 @@ const BADGE_VARIANTS = {
   temporary: { containerStyle: 'badge_temporary', textStyle: 'badgeText_temporary', iconColor: '#B75B1C' },
   regular: { containerStyle: 'badge_regular', textStyle: 'badgeText_regular', iconColor: '#0B1A33' },
   expired: { containerStyle: 'badge_expired', textStyle: 'badgeText_expired', iconColor: '#B71C1C' },
-  goalEvent: { containerStyle: 'badge_goalEvent', textStyle: 'badgeText_goalEvent', iconColor: '#0F766E' },
-  goalDaily: { containerStyle: 'badge_goalDaily', textStyle: 'badgeText_goalDaily', iconColor: '#B15A00' },
 };
 
 const TIMER_VARIANTS = {
@@ -51,15 +49,8 @@ const EventButton = ({ item, isEditMode, onPress, onLongPress, onEditName, onEdi
       badges.push({ key: 'regular', label: 'אירוע קבוע', icon: 'repeat-outline', variant: 'regular' });
     }
 
-    const goalValue = Number(item?.goalValue);
-    if (item?.goalType === 'event' && Number.isFinite(goalValue) && goalValue > 0) {
-      badges.push({ key: 'goal-event', label: `יעד ${goalValue}`, icon: 'flag-outline', variant: 'goalEvent' });
-    } else if (item?.goalType === 'daily' && Number.isFinite(goalValue) && goalValue > 0) {
-      badges.push({ key: 'goal-daily', label: `יומי ${goalValue}`, icon: 'calendar-outline', variant: 'goalDaily' });
-    }
-
     return badges;
-  }, [expired, item?.shared, item?.type, item?.expirationLabel, item?.goalType, item?.goalValue]);
+  }, [expired, item?.shared, item?.type, item?.expirationLabel]);
 
   const timerTone = expired ? 'expired' : item?.expirationTone || 'none';
   const timerVariant = TIMER_VARIANTS[timerTone] || TIMER_VARIANTS.info;
@@ -188,20 +179,6 @@ const EventButton = ({ item, isEditMode, onPress, onLongPress, onEditName, onEdi
               <Text style={[styles.timerText, styles[timerVariant.textStyle]]}>{item.expirationLabel}</Text>
             </View>
           ) : null}
-          {item.goalInfo && item.goalInfo.label ? (() => {
-            const goalVariant = TIMER_VARIANTS[item.goalInfo.tone] || TIMER_VARIANTS.info;
-            return (
-              <View style={[styles.timerPill, styles[goalVariant.containerStyle]]}>
-                <Ionicons
-                  name={item.goalInfo.icon || 'flag-outline'}
-                  size={12}
-                  color={goalVariant.iconColor}
-                  style={styles.timerIcon}
-                />
-                <Text style={[styles.timerText, styles[goalVariant.textStyle]]}>{item.goalInfo.label}</Text>
-              </View>
-            );
-          })() : null}
         </View>
       </Animated.View>
     </TouchableWithoutFeedback>
@@ -334,18 +311,6 @@ const styles = StyleSheet.create({
   },
   badgeText_expired: {
     color: '#B71C1C',
-  },
-  badge_goalEvent: {
-    backgroundColor: 'rgba(15, 118, 110, 0.12)',
-  },
-  badgeText_goalEvent: {
-    color: '#0F766E',
-  },
-  badge_goalDaily: {
-    backgroundColor: 'rgba(177, 90, 0, 0.12)',
-  },
-  badgeText_goalDaily: {
-    color: '#B15A00',
   },
   circleContainer: {
     alignItems: 'center',
