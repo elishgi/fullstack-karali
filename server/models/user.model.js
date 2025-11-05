@@ -10,6 +10,7 @@ const userSchema = new mongoose.Schema({
   password: { type: String, required: true },
   phone: { type: String, required: false, trim: true, default: '' },
   bio: { type: String, required: false, trim: true, default: '', maxlength: 180 },
+  hasSeenGuide: { type: Boolean, default: false },
 }, { timestamps: true });
 
 

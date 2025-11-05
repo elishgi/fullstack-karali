@@ -14,6 +14,7 @@ const sanitizeUser = (userDoc) => {
     lastName: userDoc.lastName || '',
     phone: userDoc.phone || '',
     bio: userDoc.bio || '',
+    hasSeenGuide: userDoc.hasSeenGuide ?? true,
   };
 };
 
@@ -131,6 +132,7 @@ const applyLegacyDefaults = (userDoc) => {
   ensure('lastName');
   ensure('phone');
   ensure('bio');
+  ensure('hasSeenGuide', true);
 
   return changed;
 };
@@ -268,4 +270,27 @@ const updateAccount = async (req, res) => {
 };
 
 
-module.exports = { signup, login, deleteAccount, resetAccount, updateAccount };
+const markGuideSeen = async (req, res) => {
+  try {
+    const userId = ensureUserId(req, res);
+    if (!userId) return;
+
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      { $set: { hasSeenGuide: true } },
+      { new: true }
+    );
+
+    if (!updatedUser) {
+      return res.status(404).json({ message: 'המשתמש לא נמצא' });
+    }
+
+    return res.json({ user: sanitizeUser(updatedUser) });
+  } catch (error) {
+    console.error('Mark guide seen error:', error);
+    return res.status(500).json({ message: 'שגיאה בעדכון מצב המדריך' });
+  }
+};
+
+
+module.exports = { signup, login, deleteAccount, resetAccount, updateAccount, markGuideSeen };

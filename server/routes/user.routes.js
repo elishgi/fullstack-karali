@@ -2,7 +2,7 @@
 
 const express = require('express');
 const router = express.Router();
-const { signup, login, deleteAccount, resetAccount, updateAccount } = require('../controllers/user.controller');
+const { signup, login, deleteAccount, resetAccount, updateAccount, markGuideSeen } = require('../controllers/user.controller');
 const auth = require('../middleware/auth');
 
 //רישום משתמש חדש
@@ -19,5 +19,7 @@ router.post('/account/reset', auth, resetAccount);
 // עדכון פרטי חשבון משתמש מחובר (נתיב חדש + תאימות לאחור)
 router.put('/account', auth, updateAccount);
 router.put('/me', auth, updateAccount);
+
+router.post('/guide/mark-seen', auth, markGuideSeen);
 
 module.exports = router;
