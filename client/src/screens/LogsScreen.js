@@ -431,7 +431,7 @@ export default function LogsScreen() {
         <View style={styles.headerWrapper}>
           <Text style={styles.title}>לוח התיעודים</Text>
           <Text style={styles.subtitle}>
-            ניהול חכם של כל הרגעים – חיפוש, סינון וסקירה מהירה
+            ניהול חכם של כל התעודים – חיפוש, סינון וסקירה מהירה
           </Text>
         </View>
 
@@ -468,7 +468,7 @@ export default function LogsScreen() {
           {filterVisible && (
             <>
               <View style={styles.advancedFilterBox}>
-                <Text style={styles.advancedFilterTitle}>סינון מתקדם</Text>
+                
 
                 <View style={styles.filterRow}>
                   <Text style={styles.label}>מתאריך</Text>
@@ -654,7 +654,7 @@ export default function LogsScreen() {
             <View style={{ flex: 1 }}>
               <Text style={styles.sectionTitle}>תיעודים אחרונים</Text>
               <Text style={styles.sectionSubtitle}>
-                הצג, ערוך ומחק בקלות את כל התיעודים הקיימים
+                הצג, ערוך ומחק בקלות את התיעודים הקיימים
               </Text>
             </View>
           </View>
@@ -777,14 +777,6 @@ export default function LogsScreen() {
               </TouchableOpacity>
             </View>
 
-            <View style={styles.modalSummaryRow}>
-              <Text style={styles.modalSummaryText}>
-                {`תיעוד ראשון: ${formatDateTime(selectedTemporary?.summary?.firstLog?.timestamp)}`}
-              </Text>
-              <Text style={styles.modalSummaryText}>
-                {`תיעוד אחרון: ${formatDateTime(selectedTemporary?.summary?.lastLog?.timestamp)}`}
-              </Text>
-            </View>
 
             <View style={styles.modalLogsContainer}>
               {temporaryLogsLoading ? (
@@ -832,7 +824,7 @@ const styles = StyleSheet.create({
     paddingVertical: 20,
     backgroundColor: '#f5f7fb',
     flexGrow: 1,
-    gap: 14,
+    gap: 10,
   },
   topBar: {
     flexDirection: 'row',
@@ -879,8 +871,8 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 14,
     borderWidth: 1,
-    borderColor: '#d8e2f0',
-    shadowColor: '#0a2540',
+    borderColor: '#f0e3d8ff',
+    shadowColor: '#141313ff',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 3,
@@ -895,12 +887,12 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     color: '#1f2933',
-    textAlign: 'right',
+    textAlign: 'center',
   },
   sectionSubtitle: {
     fontSize: 13,
     color: '#6b7a8f',
-    textAlign: 'right',
+    textAlign: 'center',
     marginTop: 2,
   },
   sectionHeaderRow: {
@@ -914,7 +906,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingVertical: 9,
     paddingHorizontal: 12,
-    fontSize: 15,
+    fontSize: 12,
     backgroundColor: '#fff',
     color: '#1f2933',
   },
@@ -936,7 +928,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#e7fbfa',
   },
   filterButtonText: {
-    fontSize: 15,
+    fontSize: 13,
     fontWeight: '600',
     color: '#1f2933',
   },
@@ -950,7 +942,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#d2dcf3',
     padding: 12,
-    gap: 12,
+    gap: 6,
   },
   advancedFilterTitle: {
     fontSize: 16,
@@ -1060,7 +1052,7 @@ const styles = StyleSheet.create({
   timePillsRow: {
     flexDirection: 'row-reverse',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: 2,
   },
   timePill: {
     borderWidth: 1,
@@ -1116,15 +1108,19 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   exportButton: {
-    backgroundColor: '#e2f4ff',
-    borderColor: '#bae3ff',
-    borderWidth: 1,
+    backgroundColor: '#b9e5e5ff',
     shadowOpacity: 0,
+    flex: 0,
+    alignSelf: 'stretch',
+    borderWidth: 1,
+    borderColor: '#cafbfeff',
+    marginTop: 4,
   },
   exportButtonText: {
-    color: '#0f4c75',
-    fontSize: 15,
+    color: '#1d657fff',
+    fontSize: 14,
     fontWeight: '700',
+    textAlign: 'center',
   },
   graphCard: {
     alignItems: 'center',
@@ -1303,11 +1299,11 @@ const styles = StyleSheet.create({
   },
   temporaryModalCard: {
     width: '92%',
-    maxHeight: '80%',
+    height: '90%',
     backgroundColor: '#fff',
     borderRadius: 22,
     padding: 18,
-    gap: 12,
+    gap: 10,
   },
   modalHeader: {
     flexDirection: 'row-reverse',
@@ -1339,16 +1335,18 @@ const styles = StyleSheet.create({
   },
   modalLogsContainer: {
     flex: 1,
-    minHeight: 120,
-    maxHeight: 340,
     width: '100%',
+    height:'100',
   },
   modalLogsScroll: {
     width: '100%',
+    
+    
   },
   modalLogsList: {
-    gap: 10,
-    paddingBottom: 12,
+    gap: 5,
+    paddingBottom: 1,
+    
   },
   deleteAllButton: {
     backgroundColor: '#fee2e2',
@@ -1364,5 +1362,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     textAlign: 'center',
+    
   },
 });

@@ -262,26 +262,23 @@ export default function AddDetailedLogScreen() {
 
       <View style={styles.headerWrapper}>
         <Text style={styles.title}>הוספת תיעוד מפורט</Text>
-        <Text style={styles.subtitle}>לכידת חוויה מלאה עם הערות, תמונות ומיקום מדויק</Text>
+        <Text style={styles.subtitle}>תעד במדוייק את המקרה על ידי הוספת פרמטרים -</Text>
       </View>
 
       {eventName ? (
         <View style={styles.eventPill}>
-          <Text style={styles.eventPillLabel}>אירוע</Text>
+          <Text style={styles.eventPillLabel}>שם האירוע:</Text>
           <Text style={styles.eventPillValue}>{eventName}</Text>
         </View>
       ) : null}
 
       <View style={styles.sectionCard}>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>סיפור האירוע</Text>
-          <Text style={styles.sectionSubtitle}>ספרו לנו מה קרה בפרטי פרטים</Text>
-        </View>
 
-        <Text style={styles.label}>הערות חופשיות</Text>
+
+        <Text style={styles.label}>הערות </Text>
         <TextInput
           style={styles.input}
-          placeholder="שתפו תובנות, רגשות או מידע חשוב להמשך..."
+          placeholder="שתף תובנות, רגשות או מידע חשוב להמשך..."
           placeholderTextColor="#9aa0a6"
           value={comment}
           onChangeText={setComment}
@@ -293,7 +290,6 @@ export default function AddDetailedLogScreen() {
       <View style={styles.sectionCard}>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>תיעוד חזותי</Text>
-          <Text style={styles.sectionSubtitle}>הוסיפו תמונה שמספרת את הסיפור</Text>
         </View>
 
         <TouchableOpacity
@@ -319,8 +315,7 @@ export default function AddDetailedLogScreen() {
 
       <View style={styles.sectionCard}>
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>מיקום האירוע</Text>
-          <Text style={styles.sectionSubtitle}>בחרו את הדרך הנוחה לכם לציין איפה זה קרה</Text>
+          <Text style={styles.sectionTitle}>תיעוד המיקום</Text>
         </View>
 
         <View style={styles.actionsRow}>
@@ -572,9 +567,9 @@ const styles = StyleSheet.create({
     color: '#6b7a90',
   },
   label: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#2f3c4a',
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1f2933',
     textAlign: 'right',
   },
   input: {
