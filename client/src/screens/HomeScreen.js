@@ -917,7 +917,10 @@ const HomeScreen = ({ route }) => {
 
         {!hasEvents ? (
           <View style={styles.emptyStateWrapper}>
-            <EmptyEventsState onAddEvent={() => navigation.navigate('AddEvent')} />
+            <EmptyEventsState
+              onAddEvent={() => navigation.navigate('AddEvent')}
+              onOpenGuide={() => navigation.navigate('HelpGuide')}
+            />
           </View>
         ) : (
           <View style={styles.content}>
