@@ -8,7 +8,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getEvents } from '../services/api';
+import { getEvents, markGuideSeen } from '../services/api';
 import { appendNotificationToStorage } from '../utils/notifications';
 
 const LoadingScreen = ({ navigation }) => {
@@ -19,7 +19,7 @@ const LoadingScreen = ({ navigation }) => {
       try {
         const rawUser = await AsyncStorage.getItem('user');
         if (!rawUser) {
-          return;
+          return { shouldWelcome: false };
         }
 
         let parsedUser;
@@ -27,34 +27,39 @@ const LoadingScreen = ({ navigation }) => {
           parsedUser = JSON.parse(rawUser);
         } catch (error) {
           console.warn('שגיאה בפענוח נתוני משתמש עבור התראת מדריך', error);
-          return;
+          return { shouldWelcome: false };
         }
 
-        const identifiers = [
-          parsedUser?._id,
-          parsedUser?.id,
-          parsedUser?.email,
-          parsedUser?.username,
-        ].filter((value) => typeof value === 'string' && value.trim().length > 0);
-
-        const rawSuffix = identifiers[0] || 'default';
-        const normalizedSuffix = rawSuffix.replace(/[^a-zA-Z0-9_-]/g, '');
-        const storageKey = `help_guide_notification_${normalizedSuffix || 'default'}`;
-
-        const alreadySent = await AsyncStorage.getItem(storageKey);
-        if (alreadySent) {
-          return;
+        if (parsedUser?.hasSeenGuide !== false) {
+          return { shouldWelcome: false };
         }
 
         await appendNotificationToStorage({
-          title: 'ברוך הבא! בוא נכיר את האפליקציה',
-          body: 'שמנו לב שזו הכניסה הראשונה שלך. היכנס למדריך כדי ללמוד איך ליצור אירועים ולתעד חוויות.',
+          title: 'ברוך הבא לקראלי! בוא נצא לסיור',
+          body: 'לחיצה כאן תוביל אותך למדריך ההיכרות שלנו, שבו תלמד איך ליצור אירועים ולתעד חוויות ראשונות.',
           metadata: { targetRoute: 'HelpGuide', type: 'guide-intro' },
         });
 
-        await AsyncStorage.setItem(storageKey, 'sent');
+        let updatedUser = { ...parsedUser, hasSeenGuide: true };
+        try {
+          const apiUser = await markGuideSeen();
+          if (apiUser) {
+            updatedUser = apiUser;
+          }
+        } catch (apiError) {
+          console.warn('שגיאה בעדכון סטטוס מדריך בשרת:', apiError);
+        }
+
+        try {
+          await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
+        } catch (storageError) {
+          console.warn('שגיאה בשמירת נתוני משתמש מעודכנים:', storageError);
+        }
+
+        return { shouldWelcome: true };
       } catch (error) {
         console.error('שגיאה בשליחת התראת מדריך שימוש:', error);
+        return { shouldWelcome: false };
       }
     };
 
@@ -74,10 +79,11 @@ const LoadingScreen = ({ navigation }) => {
           return;
         }
 
-        await sendFirstTimeGuideNotification();
+        const guideResult = await sendFirstTimeGuideNotification();
 
         navigation.replace('Home', {
           prefetchedEvents: Array.isArray(eventsData) ? eventsData : [],
+          showFirstLoginWelcome: guideResult?.shouldWelcome === true,
         });
       } catch (error) {
         console.error('שגיאה בהכנת הנתונים למסך הבית:', error);

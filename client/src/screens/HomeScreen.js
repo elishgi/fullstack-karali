@@ -192,12 +192,40 @@ const HomeScreen = ({ route }) => {
   const hasPrefetchedEvents = Array.isArray(prefetchedEvents);
 
   const [events, setEvents] = useState(() => (hasPrefetchedEvents ? prefetchedEvents : []));
+  const firstLoginAlertShown = useRef(false);
 
   useEffect(() => {
     if (hasPrefetchedEvents) {
       setEvents(prefetchedEvents);
     }
   }, [hasPrefetchedEvents, prefetchedEvents]);
+
+  const shouldShowFirstLoginWelcome = route?.params?.showFirstLoginWelcome;
+
+  useEffect(() => {
+    if (shouldShowFirstLoginWelcome && !firstLoginAlertShown.current) {
+      firstLoginAlertShown.current = true;
+      Alert.alert(
+        'ברוך הבא לקראלי!',
+        'שמחים שהצטרפת אלינו. רוצה לקבל סיור קצר ולהכיר את מסך ההסבר?',
+        [
+          {
+            text: 'אולי אחר כך',
+            style: 'cancel',
+          },
+          {
+            text: 'כן, קחו אותי',
+            onPress: () => navigation.navigate('HelpGuide'),
+          },
+        ],
+        { cancelable: true }
+      );
+
+      if (typeof navigation.setParams === 'function') {
+        navigation.setParams({ showFirstLoginWelcome: false });
+      }
+    }
+  }, [navigation, shouldShowFirstLoginWelcome]);
 
   useEffect(() => {
     if (hasPrefetchedEvents) {

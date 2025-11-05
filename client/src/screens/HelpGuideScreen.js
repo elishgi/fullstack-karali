@@ -1,6 +1,7 @@
 import React from 'react';
 import {
   ImageBackground,
+  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
@@ -41,26 +42,27 @@ const HelpGuideScreen = () => {
       style={styles.background}
       resizeMode="cover"
     >
-      <TouchableOpacity
-        onPress={() => navigation.goBack()}
-        style={styles.backButton}
-        accessibilityLabel="חזרה למסך הקודם"
-      >
-        <Ionicons name="chevron-back" size={22} color="#1b1b1b" />
-        <Text style={styles.backText}>חזרה</Text>
-      </TouchableOpacity>
-
-      <View style={styles.overlay}>
-        <View style={styles.header}>
-
-
-          <View style={styles.headerTexts}>
-            <Text style={styles.title}>מדריך שימוש באפליקציה</Text>
-            <Text style={styles.subtitle}>הכר את הסיפור, המטרה והאפשרויות שהאפליקציה שלנו יכולה להעניק לך</Text>
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.overlay}>
+          <View style={styles.topBar}>
+            <TouchableOpacity
+              onPress={() => navigation.goBack()}
+              style={styles.backButton}
+              accessibilityLabel="חזרה למסך הקודם"
+            >
+              <Ionicons name="chevron-back" size={22} color="#1b1b1b" />
+              <Text style={styles.backText}>חזרה</Text>
+            </TouchableOpacity>
           </View>
-        </View>
 
-        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          <View style={styles.header}>
+            <View style={styles.headerTexts}>
+              <Text style={styles.title}>מדריך שימוש באפליקציה</Text>
+              <Text style={styles.subtitle}>הכר את הסיפור, המטרה והאפשרויות שהאפליקציה שלנו יכולה להעניק לך</Text>
+            </View>
+          </View>
+
+          <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           <Section
             icon="sparkles-outline"
             title="הסיפור שלנו"
@@ -197,8 +199,9 @@ const HelpGuideScreen = () => {
             <Ionicons name="rocket-outline" size={22} color="#fff" style={{ marginLeft: 8 }} />
             <Text style={styles.ctaText}>יאללה, בוא ניצור אירוע ראשון</Text>
           </TouchableOpacity>
-        </ScrollView>
-      </View>
+          </ScrollView>
+        </View>
+      </SafeAreaView>
     </ImageBackground>
   );
 };
@@ -207,11 +210,21 @@ const styles = StyleSheet.create({
   background: {
     flex: 1,
   },
+  safeArea: {
+    flex: 1,
+  },
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(255,255,255,0.92)',
-    paddingTop: 48,
+    paddingTop: 16,
+    paddingBottom: 24,
     paddingHorizontal: 20,
+  },
+  topBar: {
+    flexDirection: 'row-reverse',
+    justifyContent: 'flex-start',
+    alignItems: 'center',
+    marginBottom: 18,
   },
   header: {
     flexDirection: 'row-reverse',
@@ -222,12 +235,18 @@ const styles = StyleSheet.create({
   backButton: {
     flexDirection: 'row-reverse',
     alignItems: 'center',
-    backgroundColor: '#ffffff',
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(255,255,255,0.95)',
     borderRadius: 999,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
     borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.08)',
+    borderColor: 'rgba(0,0,0,0.06)',
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
   },
   backText: {
     marginRight: 6,
