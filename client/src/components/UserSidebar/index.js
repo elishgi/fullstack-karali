@@ -44,8 +44,10 @@ const BIO_LIMIT = 180;
  *  - user: { name, email, phone, bio }
  *  - onLogout: () => void
  *  - onUserUpdated?: (userObj) => void
+ *  - initialTab?: number
+ *  - onOpenGuide?: () => void
  */
-function UserSidebar({ visible, onClose, user, onLogout, onUserUpdated, initialTab }) {
+function UserSidebar({ visible, onClose, user, onLogout, onUserUpdated, initialTab, onOpenGuide }) {
     // פותח משמאל: מתחיל בחוץ לשמאל (שלילי), נכנס ל-0 כשנפתח
     const slideAnim = useRef(new Animated.Value(-SCREEN_WIDTH)).current;
 
@@ -1011,6 +1013,13 @@ function UserSidebar({ visible, onClose, user, onLogout, onUserUpdated, initialT
 
 
     const renderSettingsPanel = () => {
+        const handleOpenGuide = () => {
+            if (typeof onOpenGuide === 'function') {
+                onClose && onClose();
+                onOpenGuide();
+            }
+        };
+
         const performDeleteAccount = async () => {
             try {
                 setAccountActionLoading(true);
@@ -1111,6 +1120,24 @@ function UserSidebar({ visible, onClose, user, onLogout, onUserUpdated, initialT
                     <Text style={styles.settingsIntro}>
                         פעולות מתקדמות לניהול החשבון. אנא קרא את ההסבר והבן את המשמעות לפני הפעלתן.
                     </Text>
+
+                    <TouchableOpacity
+                        style={styles.guideCard}
+                        onPress={handleOpenGuide}
+                        activeOpacity={0.9}
+                        accessibilityLabel="פתח מדריך שימוש באפליקציה"
+                    >
+                        <View style={styles.guideIconWrap}>
+                            <Ionicons name="book-outline" size={22} color={COLORS.primary} />
+                        </View>
+                        <View style={styles.guideTexts}>
+                            <Text style={styles.guideTitle}>הסבר שימוש באפליקציה</Text>
+                            <Text style={styles.guideSubtitle}>
+                                מדריך ויזואלי עם טיפים ודוגמאות שיעזור לכם להתחיל במהירות.
+                            </Text>
+                        </View>
+                        <Ionicons name="arrow-forward-circle" size={26} color={COLORS.primaryDark} />
+                    </TouchableOpacity>
 
                     <TouchableOpacity
                         style={[
@@ -1539,6 +1566,33 @@ const styles = StyleSheet.create({
 
     settingsSection: { marginTop: 10 },
     settingsIntro: { color: COLORS.subText, textAlign: 'right', lineHeight: 20, marginBottom: 18 },
+    guideCard: {
+        flexDirection: 'row-reverse',
+        alignItems: 'center',
+        backgroundColor: '#ffffff',
+        borderRadius: 18,
+        paddingVertical: 14,
+        paddingHorizontal: 16,
+        borderWidth: 1,
+        borderColor: 'rgba(61,214,208,0.25)',
+        marginBottom: 18,
+        gap: 14,
+        shadowColor: '#000',
+        shadowOpacity: 0.05,
+        shadowRadius: 8,
+        elevation: 2,
+    },
+    guideIconWrap: {
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        backgroundColor: 'rgba(61,214,208,0.16)',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    guideTexts: { flex: 1 },
+    guideTitle: { fontSize: 16, fontWeight: '800', color: COLORS.text, textAlign: 'right' },
+    guideSubtitle: { fontSize: 13, color: COLORS.subText, marginTop: 4, lineHeight: 18, textAlign: 'right' },
     dangerActionBase: {
         borderRadius: 16,
         borderWidth: 1,

@@ -1025,6 +1025,10 @@ const HomeScreen = ({ route }) => {
         user={userObj}
         onLogout={handleLogout}
         initialTab={sidebarInitialTab}
+        onOpenGuide={() => {
+          setSidebarVisible(false);
+          navigation.navigate('HelpGuide');
+        }}
       />
     </ImageBackground>
   );

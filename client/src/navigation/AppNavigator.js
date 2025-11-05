@@ -10,6 +10,7 @@ import AddDetailedLogScreen from '../screens/AddDetailedLogScreen';
 import SignUpScreen from '../screens/SignUpScreen';
 import LoginScreen from '../screens/LoginScreen';
 import LoadingScreen from '../screens/LoadingScreen';
+import HelpGuideScreen from '../screens/HelpGuideScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -24,6 +25,7 @@ export default function AppNavigator() {
         <Stack.Screen name="AddEvent" component={AddEventScreen} />
         <Stack.Screen name="Logs" component={LogsScreen} />
         <Stack.Screen name="AddDetailedLog" component={AddDetailedLogScreen} />
+        <Stack.Screen name="HelpGuide" component={HelpGuideScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

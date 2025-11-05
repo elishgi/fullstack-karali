@@ -7,11 +7,56 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getEvents } from '../services/api';
+import { appendNotificationToStorage } from '../utils/notifications';
 
 const LoadingScreen = ({ navigation }) => {
   useEffect(() => {
     let isActive = true;
+
+    const sendFirstTimeGuideNotification = async () => {
+      try {
+        const rawUser = await AsyncStorage.getItem('user');
+        if (!rawUser) {
+          return;
+        }
+
+        let parsedUser;
+        try {
+          parsedUser = JSON.parse(rawUser);
+        } catch (error) {
+          console.warn('שגיאה בפענוח נתוני משתמש עבור התראת מדריך', error);
+          return;
+        }
+
+        const identifiers = [
+          parsedUser?._id,
+          parsedUser?.id,
+          parsedUser?.email,
+          parsedUser?.username,
+        ].filter((value) => typeof value === 'string' && value.trim().length > 0);
+
+        const rawSuffix = identifiers[0] || 'default';
+        const normalizedSuffix = rawSuffix.replace(/[^a-zA-Z0-9_-]/g, '');
+        const storageKey = `help_guide_notification_${normalizedSuffix || 'default'}`;
+
+        const alreadySent = await AsyncStorage.getItem(storageKey);
+        if (alreadySent) {
+          return;
+        }
+
+        await appendNotificationToStorage({
+          title: 'ברוך הבא! בוא נכיר את האפליקציה',
+          body: 'שמנו לב שזו הכניסה הראשונה שלך. היכנס למדריך כדי ללמוד איך ליצור אירועים ולתעד חוויות.',
+          metadata: { targetRoute: 'HelpGuide', type: 'guide-intro' },
+        });
+
+        await AsyncStorage.setItem(storageKey, 'sent');
+      } catch (error) {
+        console.error('שגיאה בשליחת התראת מדריך שימוש:', error);
+      }
+    };
 
     const bootstrap = async () => {
       const minimumDelay = new Promise((resolve) => setTimeout(resolve, 2500));
@@ -28,6 +73,8 @@ const LoadingScreen = ({ navigation }) => {
         if (!isActive) {
           return;
         }
+
+        await sendFirstTimeGuideNotification();
 
         navigation.replace('Home', {
           prefetchedEvents: Array.isArray(eventsData) ? eventsData : [],
