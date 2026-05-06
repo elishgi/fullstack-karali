@@ -13,7 +13,10 @@ app.use('/api/users', userRoutes);
 
 
 mongoose.connect(process.env.MONGO_URL)
-    .then(() => console.log('Connected to MongoDB'))
+    .then(() => {
+        console.log('Connected to MongoDB');
+        console.log('DB Name:', mongoose.connection.name);
+    })
     .catch(err => console.error('MongoDB connection error:', err));
 
 app.get('/', (req, res) => {
