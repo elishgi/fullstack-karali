@@ -10,8 +10,8 @@ import {
   Image,
   TouchableOpacity,
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../services/api';
+import { clearAuthStorage, getStoredAuth, saveAuthStorage } from '../services/authStorage';
 
 export default function LoginScreen({ navigation }) {
   const [identifier, setIdentifier] = useState('');
@@ -19,22 +19,26 @@ export default function LoginScreen({ navigation }) {
 
   useEffect(() => {
     const checkLogin = async () => {
-      const token = await AsyncStorage.getItem('token');
-      const user = await AsyncStorage.getItem('user');
-      if (token && user) {
+      const { isValid } = await getStoredAuth();
+
+      if (isValid) {
         navigation.replace('Home');
+        return;
       }
+
+      await clearAuthStorage();
     };
+
     checkLogin();
-  }, []);
+  }, [navigation]);
 
   const handleLogin = async () => {
     try {
       const res = await api.post('/api/users/login', { identifier, password });
-      await AsyncStorage.setItem('token', res.data.token);
-      await AsyncStorage.setItem('user', JSON.stringify(res.data.user));
+      await saveAuthStorage({ token: res.data.token, user: res.data.user });
       navigation.replace('Home');
     } catch (err) {
+      await clearAuthStorage();
       Alert.alert('שגיאה', err.response?.data?.message || 'לא ניתן להתחבר. נסה שוב מאוחר יותר.');
     }
   };

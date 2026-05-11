@@ -10,8 +10,8 @@ import {
   Image,
   TouchableOpacity,
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../services/api';
+import { clearAuthStorage } from '../services/authStorage';
 
 export default function SignUpScreen({ navigation }) {
   const [name, setName] = useState('');
@@ -44,13 +44,9 @@ export default function SignUpScreen({ navigation }) {
     }
 
     try {
-      const res = await api.post('/api/users/signup', { name, email, password });
+      await api.post('/api/users/signup', { name, email, password });
+      await clearAuthStorage();
 
-      try {
-        await AsyncStorage.setItem('user', JSON.stringify({ name }));
-      } catch (storageError) {
-        console.warn('⚠️ שגיאה ב-AsyncStorage:', storageError);
-      }
       Alert.alert(
         'הרשמה הצליחה',
         'נרשמת בהצלחה! תוכל כעת להתחבר למערכת.',
@@ -66,7 +62,7 @@ export default function SignUpScreen({ navigation }) {
   };
 
   return (
-    <ImageBackground source={require('C:/Users/User/projects//fullstack-karali/client/assets/images/background4.png')} style={styles.background}>
+    <ImageBackground source={require('../../assets/images/background4.png')} style={styles.background}>
       <View style={styles.overlayBox}>
         <Image source={require('../../assets/images/logo1.png')} style={styles.logo} />
         <Text style={styles.title}>הרשמה</Text>

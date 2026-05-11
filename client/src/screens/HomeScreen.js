@@ -25,7 +25,7 @@ import {
   deleteEventAndLogs,
 } from '../services/api';
 import WheelColorPicker from 'react-native-wheel-color-picker';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { clearAuthStorage, getStoredAuth } from '../services/authStorage';
 import EventButton from '../components/EventButton';
 
 export default function HomeScreen() {
@@ -44,6 +44,7 @@ export default function HomeScreen() {
   const [selectedEventForDelete, setSelectedEventForDelete] = useState(null);
 
   const [userName, setUserName] = useState('');
+  const [isAuthReady, setIsAuthReady] = useState(false);
 
   const clickTimeout = useRef(null);
 
@@ -55,39 +56,32 @@ export default function HomeScreen() {
   const hasEvents = (events?.length ?? 0) > 0;
 
   useEffect(() => {
-    const loadUser = async () => {
-      const userData = await AsyncStorage.getItem('user');
+    const loadUserAndEvents = async () => {
+      const { user, isValid } = await getStoredAuth();
 
-      if (!userData) {
-        console.warn('🟡 לא נמצא משתמש – מחזיר ל־Login');
+      if (!isValid) {
+        console.warn('🔴 נתוני התחברות לא תקינים – מנקה נתונים ומחזיר ל־Login');
+        await clearAuthStorage();
         navigation.replace('Login');
         return;
       }
 
-      try {
-        const parsed = JSON.parse(userData);
-        if (!parsed.name) {
-          console.warn('🔴 נתוני משתמש לא תקינים – מחזיר ל־Login');
-          navigation.replace('Login');
-          return;
-        }
-        setUserName(parsed.name);
-      } catch (e) {
-        console.error('❌ שגיאה בפענוח user:', e);
-        navigation.replace('Login');
-      }
+      setUserName(user.name.trim());
+      setIsAuthReady(true);
+      fetchEvents();
     };
 
-    loadUser();
-    fetchEvents();
-  }, []);
+    loadUserAndEvents();
+  }, [navigation]);
 
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
-      fetchEvents();
+      if (isAuthReady) {
+        fetchEvents();
+      }
     });
     return unsubscribe;
-  }, [navigation]);
+  }, [isAuthReady, navigation]);
 
   useEffect(() => {
     if (hasRevealedButtons && hasEvents) {
@@ -108,8 +102,7 @@ export default function HomeScreen() {
 
   const handleLogout = async () => {
     try {
-      await AsyncStorage.removeItem('token');
-      await AsyncStorage.removeItem('user');
+      await clearAuthStorage();
       navigation.replace('Login');
     } catch (error) {
       console.error('שגיאה בהתנתקות:', error);
