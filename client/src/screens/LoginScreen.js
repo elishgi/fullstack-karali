@@ -33,8 +33,15 @@ export default function LoginScreen({ navigation }) {
   }, [navigation]);
 
   const handleLogin = async () => {
+    const trimmedIdentifier = identifier.trim();
+
+    if (!trimmedIdentifier || !password) {
+      Alert.alert('שגיאה', 'אנא מלא אימייל/שם משתמש וסיסמה');
+      return;
+    }
+
     try {
-      const res = await api.post('/api/users/login', { identifier, password });
+      const res = await api.post('/api/users/login', { identifier: trimmedIdentifier, password });
       await saveAuthStorage({ token: res.data.token, user: res.data.user });
       navigation.replace('Home');
     } catch (err) {
@@ -59,6 +66,9 @@ export default function LoginScreen({ navigation }) {
           value={identifier}
           onChangeText={setIdentifier}
           autoCapitalize="none"
+          autoCorrect={false}
+          autoComplete="username"
+          textContentType="username"
           textAlign="right"
           placeholderTextColor="#999"
         />
@@ -67,6 +77,10 @@ export default function LoginScreen({ navigation }) {
           style={styles.input}
           value={password}
           onChangeText={setPassword}
+          autoCapitalize="none"
+          autoCorrect={false}
+          autoComplete="password"
+          textContentType="password"
           secureTextEntry
           textAlign="right"
           placeholderTextColor="#999"

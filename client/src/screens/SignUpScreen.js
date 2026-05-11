@@ -11,7 +11,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import api from '../services/api';
-import { clearAuthStorage } from '../services/authStorage';
+import { saveAuthStorage } from '../services/authStorage';
 
 export default function SignUpScreen({ navigation }) {
   const [name, setName] = useState('');
@@ -28,12 +28,20 @@ export default function SignUpScreen({ navigation }) {
   };
 
   const handleSignUp = async () => {
-    if (!name.trim() || !email.trim() || !password) {
-      Alert.alert('שגיאה', 'אנא מלא את כל השדות');
+    const trimmedName = name.trim();
+    const trimmedEmail = email.trim().toLowerCase();
+    const missingFields = [];
+
+    if (!trimmedName) missingFields.push('שם');
+    if (!trimmedEmail) missingFields.push('אימייל');
+    if (!password) missingFields.push('סיסמה');
+
+    if (missingFields.length > 0) {
+      Alert.alert('שגיאה', `חסרים שדות: ${missingFields.join(', ')}`);
       return;
     }
 
-    if (!isValidEmail(email)) {
+    if (!isValidEmail(trimmedEmail)) {
       Alert.alert('שגיאה', 'אנא הזן כתובת אימייל תקינה');
       return;
     }
@@ -44,14 +52,14 @@ export default function SignUpScreen({ navigation }) {
     }
 
     try {
-      await api.post('/api/users/signup', { name, email, password });
-      await clearAuthStorage();
+      const res = await api.post('/api/users/signup', { name: trimmedName, email: trimmedEmail, password });
+      await saveAuthStorage({ token: res.data.token, user: res.data.user });
 
       Alert.alert(
         'הרשמה הצליחה',
-        'נרשמת בהצלחה! תוכל כעת להתחבר למערכת.',
+        'נרשמת בהצלחה! אתה מועבר למסך הבית.',
         [
-          { text: 'אישור', onPress: () => navigation.replace('Login') },
+          { text: 'אישור', onPress: () => navigation.replace('Home') },
         ]
       );
 
@@ -72,6 +80,9 @@ export default function SignUpScreen({ navigation }) {
           style={styles.input}
           value={name}
           onChangeText={setName}
+          autoCapitalize="words"
+          autoComplete="name"
+          textContentType="name"
           textAlign="right"
           placeholderTextColor="#999"
         />
@@ -81,6 +92,10 @@ export default function SignUpScreen({ navigation }) {
           value={email}
           onChangeText={setEmail}
           autoCapitalize="none"
+          autoCorrect={false}
+          keyboardType="email-address"
+          autoComplete="email"
+          textContentType="emailAddress"
           textAlign="right"
           placeholderTextColor="#999"
         />
@@ -89,6 +104,10 @@ export default function SignUpScreen({ navigation }) {
           style={styles.input}
           value={password}
           onChangeText={setPassword}
+          autoCapitalize="none"
+          autoCorrect={false}
+          autoComplete="new-password"
+          textContentType="newPassword"
           secureTextEntry
           textAlign="right"
           placeholderTextColor="#999"

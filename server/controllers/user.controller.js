@@ -6,7 +6,14 @@ const JWT_SECRET = process.env.JWT_SECRET || 'supersecret';
 
 const signup = async (req, res) => {
   try {
-    const { name, email, password } = req.body;
+    const name = req.body?.name?.trim();
+    const email = req.body?.email?.trim().toLowerCase();
+    const password = req.body?.password;
+
+    if (!name || !email || !password) {
+      return res.status(400).json({ message: 'אנא מלא את כל השדות' });
+    }
+
     const existing = await User.findOne({ email });
     if (existing) return res.status(400).json({ message: 'אימייל זה כבר נמצא בשימוש' });
 
@@ -25,11 +32,18 @@ const signup = async (req, res) => {
 
 const login = async (req, res) => {
   try {
-    const { identifier, password } = req.body;
+    const identifier = req.body?.identifier?.trim();
+    const password = req.body?.password;
+
+    if (!identifier || !password) {
+      return res.status(400).json({ message: 'אנא מלא אימייל/שם משתמש וסיסמה' });
+    }
+
+    const normalizedIdentifier = identifier.toLowerCase();
     // identifier יכול להיות או אימייל או שם משתמש
 
     const user = await User.findOne({
-      $or: [{ email: identifier }, { name: identifier }]
+      $or: [{ email: normalizedIdentifier }, { name: identifier }]
     });
 
     if (!user) return res.status(401).json({ message: 'משתמש לא נמצא' });
