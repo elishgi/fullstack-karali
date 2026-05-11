@@ -66,7 +66,7 @@ export default function SignUpScreen({ navigation }) {
   };
 
   return (
-    <ImageBackground source={require('C:/Users/User/fullstack-karali/client/assets/images/background4.png')} style={styles.background}>
+    <ImageBackground source={require('C:/Users/User/projects//fullstack-karali/client/assets/images/background4.png')} style={styles.background}>
       <View style={styles.overlayBox}>
         <Image source={require('../../assets/images/logo1.png')} style={styles.logo} />
         <Text style={styles.title}>הרשמה</Text>
