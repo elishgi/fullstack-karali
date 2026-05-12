@@ -1,3 +1,5 @@
+// נבדק!
+
 const mongoose = require('mongoose');
 
 //סכמת התיעוד של האירוע

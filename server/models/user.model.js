@@ -1,3 +1,5 @@
+// נבדק!
+
 const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
 
@@ -14,7 +16,9 @@ const userSchema = new mongoose.Schema({
 
 
 // הצפנת סיסמה לפני שמירה
+// דג את הפעולה לפני השמירה
 userSchema.pre('save', async function (next) {
+  // אם רק עדכן ביו ולא סיסמה אל תעשה האש על האש
   if (!this.isModified('password')) return next();
   this.password = await bcrypt.hash(this.password, 10);
   next();

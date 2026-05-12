@@ -1,7 +1,9 @@
 
+// נבדק!
+
 //ספריית יצירת טוקן
 const jwt = require('jsonwebtoken');
- // יבוא סכמות
+// יבוא סכמות
 const User = require('../models/user.model');
 const Event = require('../models/event.model');
 const Log = require('../models/log.model');
@@ -106,23 +108,27 @@ const login = async (req, res) => {
       token,
       user: sanitizeUser(user),
     });
-  // תפיסת שגיאה
+    // תפיסת שגיאה
   } catch (err) {
     return res.status(500).json({ message: 'שגיאה בהתחברות' });
   }
 };
 
+//  הבטחת משתמש מחובר
 const ensureUserId = (req, res) => {
   const userId = req.userId || req.user?._id || req.user?.id || req.user?.userId;
   if (!userId) {
     res.status(401).json({ message: 'משתמש לא מזוהה' });
+    // מחייב עצירה
     return null;
   }
   return userId;
 };
 
+// לוודא שאין שדות שנשארו undefined
 const applyLegacyDefaults = (userDoc) => {
   if (!userDoc) return false;
+  // דגל שינויים
   let changed = false;
   const ensure = (field, value = '') => {
     if (userDoc[field] === undefined) {
@@ -138,17 +144,16 @@ const applyLegacyDefaults = (userDoc) => {
 
   return changed;
 };
-
+// מחיקת חשבון משתמש כולל היסטוריה 
 const deleteAccount = async (req, res) => {
   try {
     const userId = ensureUserId(req, res);
     if (!userId) return;
-
+    // מחיקה משאר עמודות
     await Promise.all([
       Log.deleteMany({ userId }),
       Event.deleteMany({ userId }),
     ]);
-
     const deletedUser = await User.findByIdAndDelete(userId);
     if (!deletedUser) {
       return res.status(404).json({ message: 'המשתמש לא נמצא' });
@@ -161,6 +166,7 @@ const deleteAccount = async (req, res) => {
   }
 };
 
+// איתחול חשבון
 const resetAccount = async (req, res) => {
   try {
     const userId = ensureUserId(req, res);
@@ -178,11 +184,15 @@ const resetAccount = async (req, res) => {
   }
 };
 
+// עדכון חשבון
+// אפרט - >
 const updateAccount = async (req, res) => {
   try {
+    // בודק שמחובר
     const userId = ensureUserId(req, res);
     if (!userId) return;
 
+    // מביא מהבקשה את כל השדות הרלוונטים 
     const {
       username,
       name,
@@ -192,14 +202,16 @@ const updateAccount = async (req, res) => {
       bio,
       password,
     } = req.body || {};
-
+    // לאיסוף השדות לשינוי
     const updates = {};
 
+    // אם שלח משמש\אימייל\שם וכו' חדש
     if (username !== undefined) {
       const trimmed = (username || '').trim();
       if (!trimmed) {
         return res.status(400).json({ message: 'שם משתמש הוא שדה חובה' });
       }
+      // בדיקה האם קיים שם משתמש זהה בבסיס נתונים
       const existing = await User.findOne({ username: trimmed, _id: { $ne: userId } });
       if (existing) {
         return res.status(400).json({ message: 'שם המשתמש כבר בשימוש' });
@@ -234,28 +246,30 @@ const updateAccount = async (req, res) => {
 
     if (bio !== undefined) {
       const trimmedBio = (bio || '').trim();
+      // אם ארוך מידי
       if (trimmedBio.length > 180) {
         return res.status(400).json({ message: 'הביוגרפיה חורגת מהמגבלה' });
       }
       updates.bio = trimmedBio;
     }
 
+    // מושכים את השם שוב
     const user = await User.findById(userId);
     if (!user) {
       return res.status(404).json({ message: 'המשתמש לא נמצא' });
     }
-
+    // מעדכנת הכל לתוך היוזר
     Object.assign(user, updates);
-
-     applyLegacyDefaults(user);
-
+    //קריאה לפונקציה לראות שהכל defind
+    applyLegacyDefaults(user);
+    // עדכון סיסמה כולל האשינג
     const newPassword = (password || '').trim();
     if (newPassword) {
       user.password = newPassword;
     }
-
     await user.save();
 
+    // מחזיר נתונים מעודכנים (ללא סיסמה)
     return res.json({ user: sanitizeUser(user) });
   } catch (err) {
     console.error('Update account error:', err);

@@ -1,3 +1,4 @@
+// נבדק!
 const mongoose = require('mongoose');
 
 //סכמת האירוע
