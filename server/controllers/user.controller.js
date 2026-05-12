@@ -87,15 +87,6 @@ const login = async (req, res) => {
     // נסיון למצוא משתמש לפי הזנה
     let user = await User.findOne(exactQuery);
 
-    // fallback: אם לא נמצא — ננסה חיפוש לא-רגיש לרישיות (כדי לתפוס הבדלי אותיות/רווחים)
-    if (!user) {
-      const idForRegex = looksLikeEmail ? identifier.toLowerCase() : identifier;
-      const regex = new RegExp(`^${idForRegex.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
-      const fallbackQuery = looksLikeEmail ? { email: regex } : { username: regex };
-      console.log('🧪 LOGIN fallbackQuery (regex i):', fallbackQuery);
-      user = await User.findOne(fallbackQuery);
-    }
-
     // תפיסת שגיאה 
     if (!user) {
       return res.status(401).json({ message: 'פרטי התחברות שגויים' });
