@@ -98,7 +98,7 @@ const login = async (req, res) => {
 
     // תפיסת שגיאה 
     if (!user) {
-      return res.status(401).json({ message: 'משתמש לא נמצא' });
+      return res.status(401).json({ message: 'פרטי התחברות שגויים' });
     }
     //  
     if (applyLegacyDefaults(user)) {
