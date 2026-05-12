@@ -1,9 +1,15 @@
+
+//ספריית יצירת טוקן
 const jwt = require('jsonwebtoken');
+ // יבוא סכמות
 const User = require('../models/user.model');
 const Event = require('../models/event.model');
 const Log = require('../models/log.model');
+
+//secret key:
 const JWT_SECRET = process.env.JWT_SECRET || 'supersecret';
 
+//החזרה נקיה ומאובטחת של פרטים מהDB
 const sanitizeUser = (userDoc) => {
   if (!userDoc) return null;
   return {
@@ -17,37 +23,42 @@ const sanitizeUser = (userDoc) => {
   };
 };
 
-
+//פונקצית הרשמה לאתר
 const signup = async (req, res) => {
   try {
     let { username, email, password } = req.body;
 
+    //מסיר רווחים ומקטין אותיות
     username = (username || '').trim();
     email = (email || '').trim().toLowerCase();
     password = (password || '').trim();
-
+    //בדיקה שלא ריק
     if (!username || !email || !password) {
       return res.status(400).json({ message: 'יש למלא את כל השדות' });
     }
-
+    //שם משתמש תפוס
     const existingUsername = await User.findOne({ username });
     if (existingUsername) {
       return res.status(400).json({ message: 'שם המשתמש כבר תפוס' });
     }
-
+    //אימייל תפוס
     const existingEmail = await User.findOne({ email });
     if (existingEmail) {
       return res.status(400).json({ message: 'אימייל זה כבר בשימוש' });
     }
-
+    // יצירת משתמש
     const user = new User({ username, email, password });
     await user.save();
 
+    // יצירת טוקן
     const token = jwt.sign({ _id: user._id }, JWT_SECRET);
+
+    // החזרה תקין - תוקן ויוזר נקי
     return res.status(201).json({
       token,
       user: sanitizeUser(user),
     });
+    // תפיסת שגיאה 
   } catch (err) {
     console.error('Signup error:', err);
     return res.status(500).json({ message: 'שגיאה בעת יצירת המשתמש' });
@@ -55,13 +66,14 @@ const signup = async (req, res) => {
 };
 
 
-
+// פונקציית כניסה לאתר
 const login = async (req, res) => {
   try {
+    // קבלת הנתונים מהמשתמש והסרת רווחים
     let { identifier, password } = req.body;
     identifier = (identifier || '').trim();
     password = (password || '').trim();
-
+    // תפיסת שגיאה חסר משתמש\סיסמה
     if (!identifier || !password) {
       return res.status(400).json({ message: 'יש למלא אימייל/שם משתמש וסיסמה' });
     }
@@ -72,7 +84,7 @@ const login = async (req, res) => {
       ? { email: identifier.toLowerCase() }
       : { username: identifier };
 
-
+    // נסיון למצוא משתמש לפי הזנה
     let user = await User.findOne(exactQuery);
 
     // fallback: אם לא נמצא — ננסה חיפוש לא-רגיש לרישיות (כדי לתפוס הבדלי אותיות/רווחים)
@@ -84,25 +96,26 @@ const login = async (req, res) => {
       user = await User.findOne(fallbackQuery);
     }
 
-
+    // תפיסת שגיאה 
     if (!user) {
       return res.status(401).json({ message: 'משתמש לא נמצא' });
     }
-
+    //  
     if (applyLegacyDefaults(user)) {
       await user.save();
     }
-
+    // יצירת האש והשוואה לששמור בבסיס
     const isMatch = await user.comparePassword(password);
     if (!isMatch) {
       return res.status(401).json({ message: 'פרטי התחברות שגויים' });
     }
-
+    // הנפקת אישור כניסה 
     const token = jwt.sign({ _id: user._id }, JWT_SECRET);
     return res.json({
       token,
       user: sanitizeUser(user),
     });
+  // תפיסת שגיאה
   } catch (err) {
     return res.status(500).json({ message: 'שגיאה בהתחברות' });
   }

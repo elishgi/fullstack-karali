@@ -1,3 +1,5 @@
+//checkt! ~need one more reviwe.
+
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -26,7 +28,7 @@ export default function LoginScreen({ navigation }) {
         navigation.replace('Loading');
       }
     };
-    checkLogin();
+    checkLogin( );
   }, []);
 
   const handleLogin = async () => {
